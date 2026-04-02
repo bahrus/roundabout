@@ -26,6 +26,16 @@ inclusion: auto
 - Use dynamic imports (`import()`) to load conditional code on-demand
 - This keeps the main bundle small and loads features only when needed
 
+### Module System and Imports
+- Use ES modules (ESM) exclusively
+- Always include `.js` extension in import statements (even when importing from `.ts` files)
+- Use import maps for dependency resolution (configured in `imports.html`)
+- Import maps should use trailing slash notation for package prefixes (e.g., `"assign-gingerly/": "/node_modules/assign-gingerly/"`)
+- Use bare import specifiers with full paths: `import 'assign-gingerly/assignGingerly.js'` not `import 'assign-gingerly'`
+- This keeps import maps simple and makes the actual file being imported explicit
+- Server-side includes (SSI) are used to inject import maps: `<!-- #include virtual="/imports.html" -->`
+- Compile TypeScript to JavaScript using `tsc` before running tests
+
 ### Type Safety
 - Leverage TypeScript's type system for compile-time safety
 - Use generic types to maintain flexibility while ensuring correctness

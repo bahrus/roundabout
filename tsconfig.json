@@ -6,15 +6,24 @@
 		"experimentalDecorators": false,
 		"newLine": "LF",
 		"strict": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"moduleResolution": "bundler",
+		"types": []
 	},
 	"include": [
 		"index.ts",
-		"types/global.d.ts"
+		"roundabout.ts",
+		"core/*.ts",
+		"processors/*.ts",
+		"utils/*.ts"
 	],
 	"exclude":[
-		"node_modules/*",
-		"legacy/*"
+		"node_modules",
+		"legacy",
+		"tests",
+		"**/*.spec.*",
+		"playwright.config.ts"
 	]
 
 }
