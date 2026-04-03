@@ -557,3 +557,185 @@ If the property value already exists, and if the object being merged in is a sup
 
 
 
+
+
+---
+
+# Reference
+
+## Compacts Reference
+
+Compacts provide a declarative way to connect properties in your view model using naming conventions. The right-hand side value is always the delay in milliseconds (or a property name for `echo_X_to_Y_after`).
+
+### Property Transformation Compacts
+
+#### `negate_X_to_Y`
+Negates a boolean value from property X to property Y.
+
+```typescript
+compacts: {
+    negate_isHappy_to_isNotHappy: 0  // When isHappy changes, isNotHappy = !isHappy
+}
+```
+
+**Example:**
+```javascript
+vm.isHappy = false;  // → vm.isNotHappy becomes true
+```
+
+---
+
+#### `pass_length_of_X_to_Y`
+Passes the `.length` property of X (array or string) to Y.
+
+```typescript
+compacts: {
+    pass_length_of_data_to_dataLength: 0  // When data changes, dataLength = data.length
+}
+```
+
+**Example:**
+```javascript
+vm.data = ['a', 'b', 'c'];  // → vm.dataLength becomes 3
+```
+
+---
+
+#### `echo_X_to_Y`
+Copies/echoes the value from X to Y with optional delay.
+
+```typescript
+compacts: {
+    echo_inputValue_to_outputValue: 0,      // Immediate echo
+    echo_searchText_to_debouncedSearch: 300 // Echo after 300ms delay
+}
+```
+
+**Example:**
+```javascript
+vm.inputValue = 'hello';  // → vm.outputValue becomes 'hello'
+```
+
+---
+
+#### `echo_X_to_Y_after`
+Echoes value from X to Y, with delay specified by another property.
+
+```typescript
+compacts: {
+    echo_inputCount_to_inputCountEcho_after: 'debounceInterval'  // Delay from vm.debounceInterval
+}
+```
+
+**Example:**
+```javascript
+vm.debounceInterval = 500;
+vm.inputCount = 5;  // → vm.inputCountEcho becomes 5 after 500ms
+```
+
+---
+
+### Action Invocation Compacts
+
+#### `when_X_changes_call_Y`
+Calls method Y whenever property X changes. The method receives `self` as parameter and can return a partial object to merge back into the view model.
+
+```typescript
+compacts: {
+    when_age_changes_call_throwBirthdayParty: 0  // Call method when age changes
+}
+```
+
+**Example:**
+```javascript
+// Method definition
+throwBirthdayParty(self) {
+    return { partyCount: self.partyCount + 1 };
+}
+
+vm.age = 26;  // → throwBirthdayParty() is called, partyCount increments
+```
+
+---
+
+### State Mutation Compacts
+
+#### `when_X_changes_toggle_Y`
+Toggles boolean property Y whenever X changes.
+
+```typescript
+compacts: {
+    when_age_changes_toggle_ageChangedToggle: 0  // Toggle on each age change
+}
+```
+
+**Example:**
+```javascript
+vm.ageChangedToggle = false;
+vm.age = 26;  // → vm.ageChangedToggle becomes true
+vm.age = 27;  // → vm.ageChangedToggle becomes false
+```
+
+---
+
+#### `when_X_changes_inc_Y_by`
+Increments (or decrements) property Y by the specified amount whenever X changes.
+
+```typescript
+compacts: {
+    when_age_changes_inc_ageChangeCount_by: 1,   // Increment by 1
+    when_errors_changes_inc_errorTotal_by: -1    // Decrement by 1 (negative increment)
+}
+```
+
+**Example:**
+```javascript
+vm.ageChangeCount = 0;
+vm.age = 26;  // → vm.ageChangeCount becomes 1
+vm.age = 27;  // → vm.ageChangeCount becomes 2
+vm.age = 28;  // → vm.ageChangeCount becomes 3
+```
+
+---
+
+#### `when_X_changes_dispatch`
+Dispatches a custom event on the propagator when X changes.
+
+```typescript
+compacts: {
+    when_status_changes_dispatch: 'status-changed'  // Event name
+}
+```
+
+**Example:**
+```javascript
+propagator.addEventListener('status-changed', (e) => {
+    console.log('Status changed to:', e.detail);
+});
+
+vm.status = 'active';  // → 'status-changed' event is dispatched
+```
+
+---
+
+## Quick Reference Table
+
+| Pattern | Purpose | RHS Value | Example |
+|---------|---------|-----------|---------|
+| `negate_X_to_Y` | Boolean negation | Delay (ms) | `negate_isOpen_to_isClosed: 0` |
+| `pass_length_of_X_to_Y` | Array/string length | Delay (ms) | `pass_length_of_items_to_count: 0` |
+| `echo_X_to_Y` | Copy value | Delay (ms) | `echo_input_to_output: 0` |
+| `echo_X_to_Y_after` | Copy with dynamic delay | Property name | `echo_value_to_delayed_after: 'debounce'` |
+| `when_X_changes_call_Y` | Invoke method | Delay (ms) | `when_data_changes_call_process: 0` |
+| `when_X_changes_toggle_Y` | Toggle boolean | Delay (ms) | `when_click_changes_toggle_active: 0` |
+| `when_X_changes_inc_Y_by` | Increment counter | Amount | `when_event_changes_inc_count_by: 1` |
+| `when_X_changes_dispatch` | Fire event | Event name | `when_state_changes_dispatch: 'changed'` |
+
+---
+
+## Tips
+
+- **Delays**: Use `0` for immediate execution, or specify milliseconds for debouncing
+- **Method calls**: Methods receive `self` as parameter and should return `Partial<Props>` to merge
+- **Chaining**: Multiple compacts can work together - one compact's output can trigger another
+- **Testing**: Each compact type has test examples in `tests/compacts/`
