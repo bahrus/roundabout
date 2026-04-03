@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Pass Length Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting pass_length test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                data: ['a', 'b', 'c'],
+                dataLength: 0
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                compacts: {
+                    pass_length_of_data_to_dataLength: 0
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: data.length=${vm.data.length}, dataLength=${vm.dataLength}`);
+            
+            // Test: Change data and verify dataLength is updated
+            vm.data = ['x', 'y', 'z', 'w', 'q'];
+            addLog(`Changed data to array with ${vm.data.length} elements`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After wait: dataLength=${vm.dataLength}`);
+            
+            if (vm.dataLength === 5) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! dataLength correctly set to ${vm.dataLength}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected dataLength=5, got ${vm.dataLength}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

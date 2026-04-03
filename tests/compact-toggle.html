@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Toggle Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting toggle test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                age: 25,
+                ageChangedToggle: false
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                compacts: {
+                    when_age_changes_toggle_ageChangedToggle: 0
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: age=${vm.age}, ageChangedToggle=${vm.ageChangedToggle}`);
+            
+            // Test: Change age and verify toggle flips
+            vm.age = 26;
+            addLog(`Changed age to: ${vm.age}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After first change: ageChangedToggle=${vm.ageChangedToggle}`);
+            
+            // Change again to verify it toggles back
+            vm.age = 27;
+            addLog(`Changed age to: ${vm.age}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After second change: ageChangedToggle=${vm.ageChangedToggle}`);
+            
+            // Should be false after two toggles
+            if (vm.ageChangedToggle === false) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Toggle worked correctly (false after 2 changes)`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected ageChangedToggle=false, got ${vm.ageChangedToggle}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

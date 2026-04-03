@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Echo Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting echo test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                inputValue: 'hello',
+                outputValue: ''
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                compacts: {
+                    echo_inputValue_to_outputValue: 0
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: inputValue="${vm.inputValue}", outputValue="${vm.outputValue}"`);
+            
+            // Test: Change inputValue and verify outputValue echoes it
+            vm.inputValue = 'world';
+            addLog(`Changed inputValue to: "${vm.inputValue}"`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After wait: outputValue="${vm.outputValue}"`);
+            
+            if (vm.outputValue === 'world') {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! outputValue correctly echoed to "${vm.outputValue}"`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected outputValue="world", got "${vm.outputValue}"`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

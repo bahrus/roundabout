@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Negate Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting negate test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                isHappy: true,
+                isNotHappy: false
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                compacts: {
+                    negate_isHappy_to_isNotHappy: 0
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: isHappy=${vm.isHappy}, isNotHappy=${vm.isNotHappy}`);
+            
+            // Test: Change isHappy and verify isNotHappy is negated
+            vm.isHappy = false;
+            addLog(`Changed isHappy to: ${vm.isHappy}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After wait: isHappy=${vm.isHappy}, isNotHappy=${vm.isNotHappy}`);
+            
+            if (vm.isNotHappy === true) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! isNotHappy correctly negated to ${vm.isNotHappy}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected isNotHappy=true, got ${vm.isNotHappy}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
