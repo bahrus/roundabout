@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-test('Compact - when_X_changes_inc_Y_by', async ({ page }) => {
-    await page.goto('./tests/compact-inc.html');
+test('Basic compact - when_age_changes_call_throwBirthdayParty', async ({ page }) => {
+    await page.goto('./tests/compacts/basic-compact.html');
     await page.waitForTimeout(2000);
     const target = page.locator('#target');
     await expect(target).toHaveAttribute('mark', 'good');

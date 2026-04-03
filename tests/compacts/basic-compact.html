@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compact Negate Test</title>
+    <title>Basic Compact Test</title>
     <!-- #include virtual="/imports.html" -->
 </head>
 <body>
@@ -22,43 +22,54 @@
         }
 
         try {
-            addLog('Starting negate test...');
+            addLog('Starting test...');
             
-            const { roundabout } = await import('../index.js');
+            const { roundabout } = await import('../../index.js');
             addLog('Imported roundabout');
 
+            // Create a simple object with a method
             const myObject = {
-                isHappy: true,
-                isNotHappy: false
+                age: 25,
+                partyCount: 0,
+                
+                throwBirthdayParty(self) {
+                    addLog(`throwBirthdayParty called! Current partyCount: ${self.partyCount}`);
+                    return {
+                        partyCount: self.partyCount + 1
+                    };
+                }
             };
 
             addLog('Created myObject');
 
+            // Setup roundabout with compact
             const [vm, propagator] = await roundabout({
                 vm: myObject,
+                propagate: ['age'],
                 compacts: {
-                    negate_isHappy_to_isNotHappy: 0
+                    when_age_changes_call_throwBirthdayParty: 0
                 }
             });
 
             addLog('Roundabout initialized');
-            addLog(`Initial: isHappy=${vm.isHappy}, isNotHappy=${vm.isNotHappy}`);
+            addLog(`Initial age: ${vm.age}, partyCount: ${vm.partyCount}`);
             
-            // Test: Change isHappy and verify isNotHappy is negated
-            vm.isHappy = false;
-            addLog(`Changed isHappy to: ${vm.isHappy}`);
+            // Test: Change age using ++ operator (no proxy needed!)
+            myObject.age++;
+            addLog(`Changed age to: ${vm.age} using vm.age++`);
             
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait a bit for the compact to process
+            await new Promise(resolve => setTimeout(resolve, 500));
             
-            addLog(`After wait: isHappy=${vm.isHappy}, isNotHappy=${vm.isNotHappy}`);
+            addLog(`After wait - partyCount: ${vm.partyCount}`);
             
-            if (vm.isNotHappy === true) {
+            if (vm.partyCount === 1) {
                 target.setAttribute('mark', 'good');
-                target.textContent = `✓ Test passed! isNotHappy correctly negated to ${vm.isNotHappy}`;
+                target.textContent = `✓ Test passed! Party count: ${vm.partyCount}`;
                 addLog('TEST PASSED');
             } else {
                 target.setAttribute('mark', 'bad');
-                target.textContent = `✗ Test failed! Expected isNotHappy=true, got ${vm.isNotHappy}`;
+                target.textContent = `✗ Test failed! Expected partyCount=1, got ${vm.partyCount}`;
                 addLog('TEST FAILED');
             }
         } catch (error) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compact Echo Test</title>
+    <title>Compact Toggle Test</title>
     <!-- #include virtual="/imports.html" -->
 </head>
 <body>
@@ -22,14 +22,14 @@
         }
 
         try {
-            addLog('Starting echo test...');
+            addLog('Starting toggle test...');
             
-            const { roundabout } = await import('../index.js');
+            const { roundabout } = await import('../../index.js');
             addLog('Imported roundabout');
 
             const myObject = {
-                inputValue: 'hello',
-                outputValue: ''
+                age: 25,
+                ageChangedToggle: false
             };
 
             addLog('Created myObject');
@@ -37,28 +37,37 @@
             const [vm, propagator] = await roundabout({
                 vm: myObject,
                 compacts: {
-                    echo_inputValue_to_outputValue: 0
+                    when_age_changes_toggle_ageChangedToggle: 0
                 }
             });
 
             addLog('Roundabout initialized');
-            addLog(`Initial: inputValue="${vm.inputValue}", outputValue="${vm.outputValue}"`);
+            addLog(`Initial: age=${vm.age}, ageChangedToggle=${vm.ageChangedToggle}`);
             
-            // Test: Change inputValue and verify outputValue echoes it
-            vm.inputValue = 'world';
-            addLog(`Changed inputValue to: "${vm.inputValue}"`);
+            // Test: Change age and verify toggle flips
+            vm.age = 26;
+            addLog(`Changed age to: ${vm.age}`);
             
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            addLog(`After wait: outputValue="${vm.outputValue}"`);
+            addLog(`After first change: ageChangedToggle=${vm.ageChangedToggle}`);
             
-            if (vm.outputValue === 'world') {
+            // Change again to verify it toggles back
+            vm.age = 27;
+            addLog(`Changed age to: ${vm.age}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After second change: ageChangedToggle=${vm.ageChangedToggle}`);
+            
+            // Should be false after two toggles
+            if (vm.ageChangedToggle === false) {
                 target.setAttribute('mark', 'good');
-                target.textContent = `✓ Test passed! outputValue correctly echoed to "${vm.outputValue}"`;
+                target.textContent = `✓ Test passed! Toggle worked correctly (false after 2 changes)`;
                 addLog('TEST PASSED');
             } else {
                 target.setAttribute('mark', 'bad');
-                target.textContent = `✗ Test failed! Expected outputValue="world", got "${vm.outputValue}"`;
+                target.textContent = `✗ Test failed! Expected ageChangedToggle=false, got ${vm.ageChangedToggle}`;
                 addLog('TEST FAILED');
             }
         } catch (error) {

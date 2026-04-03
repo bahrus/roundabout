@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Basic Compact Test</title>
+    <title>Compact Increment Test</title>
     <!-- #include virtual="/imports.html" -->
 </head>
 <body>
@@ -22,54 +22,54 @@
         }
 
         try {
-            addLog('Starting test...');
+            addLog('Starting increment test...');
             
-            const { roundabout } = await import('../index.js');
+            const { roundabout } = await import('../../index.js');
             addLog('Imported roundabout');
 
-            // Create a simple object with a method
             const myObject = {
                 age: 25,
-                partyCount: 0,
-                
-                throwBirthdayParty(self) {
-                    addLog(`throwBirthdayParty called! Current partyCount: ${self.partyCount}`);
-                    return {
-                        partyCount: self.partyCount + 1
-                    };
-                }
+                ageChangeCount: 0
             };
 
             addLog('Created myObject');
 
-            // Setup roundabout with compact
             const [vm, propagator] = await roundabout({
                 vm: myObject,
-                propagate: ['age'],
                 compacts: {
-                    when_age_changes_call_throwBirthdayParty: 0
+                    when_age_changes_inc_ageChangeCount_by: 1
                 }
             });
 
             addLog('Roundabout initialized');
-            addLog(`Initial age: ${vm.age}, partyCount: ${vm.partyCount}`);
+            addLog(`Initial: age=${vm.age}, ageChangeCount=${vm.ageChangeCount}`);
             
-            // Test: Change age using ++ operator (no proxy needed!)
-            myObject.age++;
-            addLog(`Changed age to: ${vm.age} using vm.age++`);
+            // Test: Change age multiple times and verify counter increments
+            vm.age = 26;
+            addLog(`Changed age to: ${vm.age}`);
             
-            // Wait a bit for the compact to process
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After first change: ageChangeCount=${vm.ageChangeCount}`);
             
-            addLog(`After wait - partyCount: ${vm.partyCount}`);
+            vm.age = 27;
+            addLog(`Changed age to: ${vm.age}`);
             
-            if (vm.partyCount === 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After second change: ageChangeCount=${vm.ageChangeCount}`);
+            
+            vm.age = 28;
+            addLog(`Changed age to: ${vm.age}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After third change: ageChangeCount=${vm.ageChangeCount}`);
+            
+            if (vm.ageChangeCount === 3) {
                 target.setAttribute('mark', 'good');
-                target.textContent = `✓ Test passed! Party count: ${vm.partyCount}`;
+                target.textContent = `✓ Test passed! Counter correctly incremented to ${vm.ageChangeCount}`;
                 addLog('TEST PASSED');
             } else {
                 target.setAttribute('mark', 'bad');
-                target.textContent = `✗ Test failed! Expected partyCount=1, got ${vm.partyCount}`;
+                target.textContent = `✗ Test failed! Expected ageChangeCount=3, got ${vm.ageChangeCount}`;
                 addLog('TEST FAILED');
             }
         } catch (error) {
