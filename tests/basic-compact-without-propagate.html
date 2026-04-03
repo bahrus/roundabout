@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Compact Without Propagate Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            // Create a simple object with a method
+            const myObject = {
+                age: 25,
+                partyCount: 0,
+                
+                throwBirthdayParty(self) {
+                    addLog(`throwBirthdayParty called! Current partyCount: ${self.partyCount}`);
+                    return {
+                        partyCount: self.partyCount + 1
+                    };
+                }
+            };
+
+            addLog('Created myObject');
+
+            // Setup roundabout with compact
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                compacts: {
+                    when_age_changes_call_throwBirthdayParty: 0
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial age: ${vm.age}, partyCount: ${vm.partyCount}`);
+            
+            // Test: Change age using ++ operator (no proxy needed!)
+            vm.age++;
+            addLog(`Changed age to: ${vm.age} using vm.age++`);
+            
+            // Wait a bit for the compact to process
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            addLog(`After wait - partyCount: ${vm.partyCount}`);
+            
+            if (vm.partyCount === 1) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Party count: ${vm.partyCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected partyCount=1, got ${vm.partyCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
