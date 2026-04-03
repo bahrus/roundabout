@@ -48,6 +48,16 @@ inclusion: auto
 
 ## Architecture Principles
 
+### No Proxies - Use Getter/Setter Conversion
+- **NEVER use Proxy** for reactivity - it adds unnecessary overhead and complexity
+- Instead, convert properties to getter/setter pairs that fire events
+- The propagator EventTarget is created dynamically when needed
+- Properties to monitor are inferred from configuration (propagate, compacts, actions, etc.)
+- For plain objects: Create a private storage object for property values
+- For class instances: Add getters/setters to the prototype if not already present
+- Preserve existing property values during conversion
+- Subscribe to the propagator's events to trigger reactions
+
 ### Separation of Concerns
 - **View Model (VM)**: Single source of truth for all state
 - **Actions**: Pure transformation functions that return partial state updates

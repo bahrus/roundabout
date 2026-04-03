@@ -53,14 +53,10 @@
 
             addLog('Roundabout initialized');
             addLog(`Initial age: ${vm.age}, partyCount: ${vm.partyCount}`);
-            addLog(`VM has __roundaboutReactions: ${!!vm.__roundaboutReactions}`);
-            if (vm.__roundaboutReactions) {
-                addLog(`Reactions registered for: ${Array.from(vm.__roundaboutReactions.keys()).join(', ')}`);
-            }
             
-            // Test: Change age and verify throwBirthdayParty was called
-            vm.age = 26;
-            addLog(`Changed age to: ${vm.age}`);
+            // Test: Change age using ++ operator (no proxy needed!)
+            vm.age++;
+            addLog(`Changed age to: ${vm.age} using vm.age++`);
             
             // Wait a bit for the compact to process
             await new Promise(resolve => setTimeout(resolve, 500));

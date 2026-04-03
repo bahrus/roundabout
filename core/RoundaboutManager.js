@@ -16,8 +16,8 @@ export class RoundaboutManager {
     async initialize() {
         // Step 1: Setup VM with RoundaboutReady interface
         await this.setupViewModel();
-        // Step 2: Wrap VM in proxy for reactivity
-        await this.wrapInProxy();
+        // Step 2: Infer properties to monitor and setup propagator with getter/setters
+        await this.setupPropagatorAndProperties();
         // Step 3: Process configuration options
         await this.processOptions();
         return [this.vm, this.propagator];
@@ -27,13 +27,6 @@ export class RoundaboutManager {
         // Add RoundaboutReady interface if not present
         if (!vm.RAController) {
             vm.RAController = this.abortController;
-        }
-        if (!vm.propagator) {
-            Object.defineProperty(vm, 'propagator', {
-                get: () => this.propagator,
-                enumerable: false,
-                configurable: true
-            });
         }
         if (!vm.covertAssignment) {
             vm.covertAssignment = async (obj) => {
@@ -58,23 +51,21 @@ export class RoundaboutManager {
         }
         this.vm = vm;
     }
-    async wrapInProxy() {
-        const { ViewModelProxy } = await import('./ViewModelProxy.js');
-        const propagateKeys = this.getPropagateKeys();
-        this.vm = ViewModelProxy.create(this.vm, (key, value) => this.handlePropertyChange(key, value), propagateKeys);
-    }
-    getPropagateKeys() {
-        const keys = new Set();
-        const propagate = this.options.propagate;
-        if (!propagate)
-            return keys;
-        if (typeof propagate === 'string') {
-            keys.add(propagate);
+    async setupPropagatorAndProperties() {
+        const { setupPropagator, inferPropertiesToMonitor } = await import('../utils/PropagatorSetup.js');
+        // Infer which properties need monitoring
+        const propertiesToMonitor = inferPropertiesToMonitor(this.options);
+        // Setup propagator and convert properties to getter/setters
+        this.propagator = await setupPropagator(this.vm, propertiesToMonitor);
+        // Subscribe to propagator events to trigger reactions
+        for (const prop of propertiesToMonitor) {
+            this.propagator.addEventListener(prop, (event) => {
+                const customEvent = event;
+                this.handlePropertyChange(prop, customEvent.detail.newValue).catch(err => {
+                    console.error(`Error handling property change for ${prop}:`, err);
+                });
+            }, { signal: this.abortController.signal });
         }
-        else if (Array.isArray(propagate)) {
-            propagate.forEach(key => keys.add(key));
-        }
-        return keys;
     }
     async handlePropertyChange(key, value) {
         // Avoid duplicate processing
@@ -93,11 +84,6 @@ export class RoundaboutManager {
         }
     }
     async processPropertyChangeInternal(key, value) {
-        // Fire propagator event if this is a propagate key
-        const propagateKeys = this.getPropagateKeys();
-        if (propagateKeys.has(key)) {
-            this.propagator.dispatchEvent(new CustomEvent(key, { detail: value }));
-        }
         // Trigger any registered reactions for this property
         const vmAny = this.vm;
         const reactions = vmAny.__roundaboutReactions?.get(key);
