@@ -250,7 +250,7 @@ Whereas "Compacts" allow us to connect *two* members of the view model together,
 ```TypeScript
 
 const model = {
-    enhancedElement: HTMLElement,
+    enhancedElement: HTMLElement | WeakRef<HTMLElement>,
     eventProp: 'click',
     ageCount: 23
 };
