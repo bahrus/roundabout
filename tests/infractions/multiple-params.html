@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infraction - Multiple Parameters Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting multiple parameters infraction test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create view model
+            const myObject = {
+                width: 10,
+                height: 20,
+                area: 0,
+                perimeter: 0
+            };
+
+            addLog('Created myObject');
+            addLog(`Initial: width=${myObject.width}, height=${myObject.height}`);
+
+            // Infraction with multiple destructured parameters
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['width', 'height', 'area', 'perimeter']
+            }, [
+                // Depends on both width and height
+                ({width, height}) => ({
+                    area: width * height,
+                    perimeter: 2 * (width + height)
+                })
+            ]);
+
+            addLog('Roundabout initialized');
+            addLog(`After init: area=${vm.area}, perimeter=${vm.perimeter}`);
+
+            // Verify initial calculation
+            if (vm.area !== 200 || vm.perimeter !== 60) {
+                throw new Error(`Initial calculation failed: area=${vm.area}, perimeter=${vm.perimeter}`);
+            }
+
+            // Change width
+            addLog('Changing width to 15...');
+            vm.width = 15;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After width change: area=${vm.area}, perimeter=${vm.perimeter}`);
+
+            // Should recalculate
+            if (vm.area !== 300 || vm.perimeter !== 70) {
+                throw new Error(`Width change failed: area=${vm.area}, perimeter=${vm.perimeter}`);
+            }
+
+            // Change height
+            addLog('Changing height to 25...');
+            vm.height = 25;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After height change: area=${vm.area}, perimeter=${vm.perimeter}`);
+
+            // Verify
+            if (vm.area === 375 && vm.perimeter === 80) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! area=${vm.area}, perimeter=${vm.perimeter}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected area=375, perimeter=80, got area=${vm.area}, perimeter=${vm.perimeter}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

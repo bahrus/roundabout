@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infraction - Inline Function Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting inline function infraction test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create view model
+            const myObject = {
+                age: 25,
+                agePlus10: 0
+            };
+
+            addLog('Created myObject');
+            addLog(`Initial: age=${myObject.age}, agePlus10=${myObject.agePlus10}`);
+
+            // Use inline function infraction
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['age', 'agePlus10']
+            }, [
+                // Inline infraction - infers dependency on 'age'
+                ({age}) => ({agePlus10: age + 10})
+            ]);
+
+            addLog('Roundabout initialized');
+            addLog(`After init: age=${vm.age}, agePlus10=${vm.agePlus10}`);
+
+            // Verify initial calculation
+            if (vm.agePlus10 !== 35) {
+                throw new Error(`Initial calculation failed: expected 35, got ${vm.agePlus10}`);
+            }
+
+            // Change age
+            addLog('Changing age to 30...');
+            vm.age = 30;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change: age=${vm.age}, agePlus10=${vm.agePlus10}`);
+
+            // Verify
+            if (vm.agePlus10 === 40) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! agePlus10 = ${vm.agePlus10}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected agePlus10=40, got ${vm.agePlus10}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

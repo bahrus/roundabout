@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infraction - Method Name Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting method name infraction test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create view model with method
+            const myObject = {
+                searchString: '',
+                foundIt: false,
+                resultCount: 0,
+                
+                // Method that will be referenced by name
+                doSearch({searchString}) {
+                    addLog(`doSearch called with: "${searchString}"`);
+                    return {
+                        foundIt: searchString.length > 0,
+                        resultCount: searchString.length * 2
+                    };
+                }
+            };
+
+            addLog('Created myObject with doSearch method');
+            addLog(`Initial: searchString="${myObject.searchString}", foundIt=${myObject.foundIt}`);
+
+            // Use method name as infraction
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['searchString', 'foundIt', 'resultCount']
+            }, [
+                'doSearch'  // Reference method by name
+            ]);
+
+            addLog('Roundabout initialized');
+            addLog(`After init: foundIt=${vm.foundIt}, resultCount=${vm.resultCount}`);
+
+            // Change searchString
+            addLog('Setting searchString to "test"...');
+            vm.searchString = 'test';
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change: foundIt=${vm.foundIt}, resultCount=${vm.resultCount}`);
+
+            // Verify
+            if (vm.foundIt === true && vm.resultCount === 8) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! foundIt=${vm.foundIt}, resultCount=${vm.resultCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected foundIt=true, resultCount=8, got foundIt=${vm.foundIt}, resultCount=${vm.resultCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

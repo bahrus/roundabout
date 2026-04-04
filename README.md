@@ -941,6 +941,309 @@ Hitches handle edge cases gracefully:
 
 ---
 
+## Infractions Reference
+
+Infractions (short for "inferred reactions") automatically determine dependencies by parsing function parameters. Instead of explicitly declaring which properties trigger a reaction, infractions infer them from destructured parameters.
+
+### Pattern
+
+```typescript
+const [vm] = await roundabout({
+    vm: myObject,
+    // ... other options
+}, [
+    // Array of functions or method names
+    ({age}) => ({agePlus10: age + 10}),
+    'doSearch',
+    myFunction
+]);
+```
+
+### Three Ways to Define Infractions
+
+#### 1. Inline Functions (Instant Gratification)
+
+Most direct - define the function right in the infractions array:
+
+```typescript
+const [vm] = await roundabout({
+    vm: {
+        age: 25,
+        agePlus10: 0
+    },
+    propagate: ['age', 'agePlus10']
+}, [
+    // Infers dependency on 'age' from parameter
+    ({age}) => ({agePlus10: age + 10})
+]);
+
+vm.age = 30;  // Automatically updates agePlus10 to 40
+```
+
+**Pros**: Locality of behavior, easy to understand
+**Cons**: Not JSON serializable
+
+#### 2. Method Names (JSON Serializable)
+
+Reference methods by name as strings:
+
+```typescript
+class MyViewModel {
+    searchString = '';
+    foundIt = false;
+    
+    doSearch({searchString}) {
+        return {
+            foundIt: searchString.length > 0,
+            results: searchString.split(' ')
+        };
+    }
+}
+
+const instance = new MyViewModel();
+
+const [vm] = await roundabout({
+    vm: instance,
+    propagate: ['searchString', 'foundIt', 'results']
+}, [
+    'doSearch'  // Reference by name
+]);
+```
+
+**Pros**: JSON serializable, clean separation
+**Cons**: Extra indirection
+
+#### 3. Function References
+
+Define functions separately and reference them:
+
+```typescript
+const calcAgePlus10 = ({age}) => ({agePlus10: age + 10});
+
+class MyViewModel {
+    age = 25;
+    agePlus10 = 0;
+    
+    // Assign to instance for JSON serialization
+    calcAgePlus10 = calcAgePlus10;
+}
+
+const instance = new MyViewModel();
+
+const [vm] = await roundabout({
+    vm: instance,
+    propagate: ['age', 'agePlus10']
+}, [
+    calcAgePlus10  // Direct reference
+    // OR: 'calcAgePlus10'  // By name (JSON serializable)
+]);
+```
+
+**Pros**: Reusable, testable, can be JSON serializable
+**Cons**: Requires assignment to instance for serialization
+
+### Multiple Dependencies
+
+Infractions automatically detect all destructured parameters:
+
+```typescript
+const [vm] = await roundabout({
+    vm: {
+        width: 10,
+        height: 20,
+        area: 0,
+        perimeter: 0
+    },
+    propagate: ['width', 'height', 'area', 'perimeter']
+}, [
+    // Depends on BOTH width and height
+    ({width, height}) => ({
+        area: width * height,
+        perimeter: 2 * (width + height)
+    })
+]);
+
+vm.width = 15;   // Recalculates area and perimeter
+vm.height = 25;  // Also recalculates area and perimeter
+```
+
+### How It Works
+
+1. **Parameter Parsing**: Extracts property names from destructured parameters
+2. **Reaction Registration**: Registers reactions for each detected property
+3. **Initial Execution**: Runs immediately on initialization
+4. **Automatic Updates**: Runs whenever any dependency changes
+
+**Example parsing:**
+```typescript
+({age}) => ...              // Detects: ['age']
+({width, height}) => ...    // Detects: ['width', 'height']
+({a, b, c}) => ...          // Detects: ['a', 'b', 'c']
+```
+
+### Function Signature
+
+Infraction functions receive the view model and return partial updates:
+
+```typescript
+type InfractionFn<TProps> = (props: TProps) => Partial<TProps> | Promise<Partial<TProps>>
+```
+
+**Parameters:**
+- Destructured properties from view model
+
+**Return value:**
+- `Partial<Props>` - Merged back into VM via `assignGingerly`
+- Supports both sync and async functions
+
+**Example:**
+```typescript
+({searchString, filters}) => {
+    const results = performSearch(searchString, filters);
+    return {
+        results,
+        resultCount: results.length,
+        searchedAt: Date.now()
+    };
+}
+```
+
+### Async Support
+
+Infractions support async functions:
+
+```typescript
+const [vm] = await roundabout({
+    vm: {
+        userId: null,
+        userData: null,
+        loading: false
+    },
+    propagate: ['userId', 'userData', 'loading']
+}, [
+    async ({userId}) => {
+        if (!userId) return { userData: null, loading: false };
+        
+        return { loading: true };
+    },
+    async ({userId}) => {
+        if (!userId) return {};
+        
+        const data = await fetchUser(userId);
+        return {
+            userData: data,
+            loading: false
+        };
+    }
+]);
+```
+
+### Comparison with Actions
+
+| Feature | Infractions | Actions |
+|---------|-------------|---------|
+| **Dependency Declaration** | Inferred from params | Explicit (ifKeyIn, etc.) |
+| **Syntax** | Function parameters | Configuration object |
+| **Conditional Logic** | Manual (in function) | Built-in (ifAllOf, etc.) |
+| **JSON Serializable** | With method names | Yes |
+| **Best for** | Simple calculations | Complex conditional logic |
+| **Learning Curve** | Lower | Higher |
+
+**When to use Infractions:**
+- Simple derived properties
+- Calculations based on multiple inputs
+- When dependencies are obvious from code
+- Prefer concise, functional style
+
+**When to use Actions:**
+- Complex conditional logic
+- Need multiple condition types
+- Transition-based triggers
+- Need debugging support
+
+### Use Cases
+
+**Derived calculations:**
+```typescript
+[
+    ({price, quantity}) => ({total: price * quantity}),
+    ({total, taxRate}) => ({totalWithTax: total * (1 + taxRate)})
+]
+```
+
+**Data transformation:**
+```typescript
+[
+    ({rawData}) => ({
+        processedData: rawData.map(transform),
+        dataCount: rawData.length
+    })
+]
+```
+
+**Search/filter:**
+```typescript
+[
+    ({items, searchQuery}) => ({
+        filteredItems: items.filter(item => 
+            item.name.includes(searchQuery)
+        )
+    })
+]
+```
+
+**Validation:**
+```typescript
+[
+    ({email, password}) => ({
+        isValid: email.includes('@') && password.length >= 8,
+        errors: validateForm({email, password})
+    })
+]
+```
+
+### Tips
+
+- **Keep functions pure**: Avoid side effects, return new state
+- **Use descriptive names**: Make dependencies clear
+- **Test separately**: Infraction functions are easy to unit test
+- **Combine with actions**: Use infractions for calculations, actions for complex logic
+- **Initial execution**: Remember infractions run immediately on initialization
+
+### Quick Reference
+
+**Inline function:**
+```typescript
+[({age}) => ({agePlus10: age + 10})]
+```
+
+**Method name:**
+```typescript
+['doSearch']
+```
+
+**Function reference:**
+```typescript
+[calcAgePlus10]
+```
+
+**Multiple dependencies:**
+```typescript
+[({width, height}) => ({area: width * height})]
+```
+
+**Async:**
+```typescript
+[async ({userId}) => {
+    const data = await fetchUser(userId);
+    return {userData: data};
+}]
+```
+
+**Testing**: See `tests/infractions/` for comprehensive examples.
+
+---
+
 
 ## Actions Reference
 
