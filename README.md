@@ -450,9 +450,9 @@ For string members of the pass array, if the string resolves to a member of the 
 
 To pass self, use '$0'. Exception:  If working with enhancements, which also use roundabouts, use $0 to pass in the element being enhanced, but $0+ to pass in the enhancement.
 
-## Merging Traffic via assignGingerly [WIP]
+## Merging Traffic via assignGingerly
 
-The function assignGingerly in trans-render/lib/assignGingerly.js allows for safe, nested, recursive property setting, and allows for notifying the object containing the nested property that a change was made, no matter how deep.
+The function [assignGingerly](https://github.com/bahrus/assign-gingerly) allows for safe, nested, recursive property setting, and allows for notifying the object containing the nested property that a change was made, no matter how deep.
 
 It does optional chaining access, but in reverse.
 
