@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action Combined Conditions Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting combined conditions test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                isLoggedIn: false,
+                hasPermission: false,
+                resourceId: null,
+                accessGranted: false,
+                callCount: 0,
+                
+                checkAccess(self, context) {
+                    addLog(`checkAccess called! Changed: ${context.changedProperty}`);
+                    return {
+                        accessGranted: true,
+                        callCount: self.callCount + 1
+                    };
+                }
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    checkAccess: {
+                        ifAllOf: ['isLoggedIn', 'hasPermission'],  // Must be logged in AND have permission
+                        ifKeyIn: ['resourceId']  // AND resourceId must change
+                    }
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: accessGranted=${vm.accessGranted}, callCount=${vm.callCount}`);
+            
+            // Set resourceId but not logged in - should NOT trigger
+            vm.resourceId = 'resource-1';
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After resourceId (not logged in): accessGranted=${vm.accessGranted}, callCount=${vm.callCount}`);
+            
+            // Log in but no permission - should NOT trigger
+            vm.isLoggedIn = true;
+            vm.resourceId = 'resource-2';
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After login (no permission): accessGranted=${vm.accessGranted}, callCount=${vm.callCount}`);
+            
+            // Grant permission - now all conditions met, should trigger on next resourceId change
+            vm.hasPermission = true;
+            vm.resourceId = 'resource-3';
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After permission + resourceId: accessGranted=${vm.accessGranted}, callCount=${vm.callCount}`);
+            
+            // Change resourceId again - should trigger again (ifKeyIn behavior)
+            vm.accessGranted = false; // Reset
+            vm.resourceId = 'resource-4';
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After another resourceId: accessGranted=${vm.accessGranted}, callCount=${vm.callCount}`);
+            
+            // Should have been called twice (when all conditions met)
+            if (vm.callCount === 2 && vm.accessGranted === true) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Called ${vm.callCount} times with combined conditions`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected callCount=2, got ${vm.callCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

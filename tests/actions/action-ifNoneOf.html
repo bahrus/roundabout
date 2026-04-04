@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action ifNoneOf Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting ifNoneOf action test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                data: null,
+                loading: false,
+                error: null,
+                showEmptyState: false,
+                
+                setEmptyState(self, context) {
+                    addLog(`setEmptyState called! Changed: ${context.changedProperty}`);
+                    return {
+                        showEmptyState: true
+                    };
+                }
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    setEmptyState: {
+                        ifNoneOf: ['data', 'loading', 'error']
+                    }
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: showEmptyState=${vm.showEmptyState}`);
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After init: showEmptyState=${vm.showEmptyState}`);
+            
+            // Set loading to true - should prevent empty state
+            vm.loading = true;
+            vm.showEmptyState = false; // Reset
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After loading=true: showEmptyState=${vm.showEmptyState}`);
+            
+            // Set loading back to false - should trigger empty state again
+            vm.loading = false;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After loading=false: showEmptyState=${vm.showEmptyState}`);
+            
+            if (vm.showEmptyState === true) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Empty state shown when all are falsy`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected showEmptyState=true, got ${vm.showEmptyState}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
