@@ -739,3 +739,336 @@ vm.status = 'active';  // → 'status-changed' event is dispatched
 - **Method calls**: Methods receive `self` as parameter and should return `Partial<Props>` to merge
 - **Chaining**: Multiple compacts can work together - one compact's output can trigger another
 - **Testing**: Each compact type has test examples in `tests/compacts/`
+
+
+## Actions Reference
+
+Actions provide fine-grained control over when and how methods are invoked. Unlike compacts which use naming conventions, actions use explicit conditional logic.
+
+### Basic Structure
+
+```typescript
+actions: {
+    methodName: {
+        // Conditional logic (all are AND-ed together)
+        ifAllOf?: string | string[],
+        ifKeyIn?: string | string[],
+        ifNoneOf?: string | string[],
+        ifEquals?: string[],
+        ifAtLeastOneOf?: string | string[],
+        ifNotAllOf?: string | string[],
+        
+        // Execution options
+        delay?: number,
+        debug?: boolean,
+        do?: Function | string | ((props) => Partial<Props>)
+    }
+}
+```
+
+### Conditional Logic Options
+
+#### `ifAllOf`
+Execute only when ALL specified properties are truthy.
+
+```typescript
+actions: {
+    validateForm: {
+        ifAllOf: ['username', 'password', 'email']
+    }
+}
+```
+
+**Behavior**: 
+- Triggers only on transition to "all conditions met"
+- Won't trigger again until at least one becomes falsy, then all become truthy again
+
+**Example:**
+```javascript
+vm.username = 'john';     // Not triggered (password, email still falsy)
+vm.password = 'secret';   // Not triggered (email still falsy)
+vm.email = 'john@ex.com'; // → validateForm() called (all now truthy)
+vm.username = 'jane';     // Not triggered (already all truthy)
+```
+
+---
+
+#### `ifKeyIn`
+Execute whenever ANY of the specified properties change.
+
+```typescript
+actions: {
+    recalculate: {
+        ifKeyIn: ['width', 'height', 'depth']
+    }
+}
+```
+
+**Behavior**:
+- Triggers on EVERY change to monitored properties
+- Also triggers on initialization if properties are defined
+
+**Example:**
+```javascript
+// Initial: recalculate() called
+vm.width = 15;   // → recalculate() called
+vm.height = 25;  // → recalculate() called
+vm.depth = 35;   // → recalculate() called
+```
+
+---
+
+#### `ifNoneOf`
+Execute only when NONE of the specified properties are truthy.
+
+```typescript
+actions: {
+    showEmptyState: {
+        ifNoneOf: ['data', 'loading', 'error']
+    }
+}
+```
+
+**Behavior**:
+- Triggers when transitioning to "all falsy"
+- Won't trigger again until at least one becomes truthy, then all become falsy again
+
+**Example:**
+```javascript
+// Initial: all falsy → showEmptyState() called
+vm.loading = true;   // Condition no longer met
+vm.loading = false;  // → showEmptyState() called (all falsy again)
+```
+
+---
+
+#### `ifEquals`
+Execute when all specified properties have equal values.
+
+```typescript
+actions: {
+    confirmMatch: {
+        ifEquals: ['password', 'confirmPassword']
+    }
+}
+```
+
+**Behavior**:
+- Triggers when transitioning to "all equal"
+- Uses strict equality (`===`)
+
+**Example:**
+```javascript
+vm.password = 'secret123';
+vm.confirmPassword = 'different';  // Not triggered (not equal)
+vm.confirmPassword = 'secret123';  // → confirmMatch() called (now equal)
+```
+
+---
+
+#### `ifAtLeastOneOf`
+Execute when AT LEAST ONE of the specified properties is truthy.
+
+```typescript
+actions: {
+    handleError: {
+        ifAtLeastOneOf: ['networkError', 'validationError', 'serverError']
+    }
+}
+```
+
+**Behavior**:
+- Triggers when transitioning from "all falsy" to "at least one truthy"
+
+---
+
+#### `ifNotAllOf`
+Execute when NOT ALL properties are truthy (at least one is falsy).
+
+```typescript
+actions: {
+    showIncompleteWarning: {
+        ifNotAllOf: ['step1Complete', 'step2Complete', 'step3Complete']
+    }
+}
+```
+
+**Behavior**:
+- Triggers when transitioning to "not all truthy"
+- Opposite of `ifAllOf`
+
+---
+
+### Combining Conditions
+
+Multiple conditions can be used together and are AND-ed:
+
+```typescript
+actions: {
+    checkAccess: {
+        ifAllOf: ['isLoggedIn', 'hasPermission'],  // Must be logged in AND have permission
+        ifKeyIn: ['resourceId']                     // AND resourceId must change
+    }
+}
+```
+
+**Behavior**: All conditions must be satisfied for the action to execute.
+
+---
+
+### Execution Options
+
+#### `delay`
+Debounce execution by specified milliseconds.
+
+```typescript
+actions: {
+    search: {
+        ifKeyIn: ['searchQuery'],
+        delay: 300  // Wait 300ms after last change
+    }
+}
+```
+
+---
+
+#### `debug`
+Enable console logging for debugging.
+
+```typescript
+actions: {
+    complexCalculation: {
+        ifAllOf: ['x', 'y', 'z'],
+        debug: true  // Logs condition checks and execution
+    }
+}
+```
+
+---
+
+#### `do`
+Specify a different method or inline function.
+
+```typescript
+actions: {
+    onDataChange: {
+        ifKeyIn: ['data'],
+        do: 'processData'  // Call vm.processData() instead
+    },
+    calculate: {
+        ifKeyIn: ['a', 'b'],
+        do: ({a, b}) => ({ result: a + b })  // Inline function
+    }
+}
+```
+
+---
+
+### Method Signature
+
+Action methods receive two parameters:
+
+```typescript
+methodName(self: VM, context: ActionContext): Partial<Props> | void
+```
+
+**Parameters:**
+- `self` - The view model instance
+- `context` - Object with:
+  - `rule` - The action key that triggered this call
+  - `changedProperty` - The property that changed
+
+**Return value:**
+- `Partial<Props>` - Merged back into VM via `assignGingerly`
+- `void` - No merge, side effects only
+- Supports both sync and async methods
+
+**Example:**
+```typescript
+validateForm(self, context) {
+    console.log(`Triggered by: ${context.changedProperty}`);
+    return {
+        isValid: self.username && self.password && self.email,
+        validatedAt: Date.now()
+    };
+}
+```
+
+---
+
+### Initial Evaluation
+
+Actions are evaluated once on initialization:
+
+```typescript
+const [vm] = await roundabout({
+    vm: { username: 'john', password: 'secret', email: 'john@ex.com' },
+    actions: {
+        validateForm: {
+            ifAllOf: ['username', 'password', 'email']
+        }
+    }
+});
+// validateForm() is called immediately since all conditions are met
+```
+
+---
+
+### Conflict Detection
+
+Actions cannot share methods with compacts:
+
+```typescript
+// ❌ ERROR - Conflict!
+{
+    compacts: {
+        when_age_changes_call_throwBirthdayParty: 0
+    },
+    actions: {
+        throwBirthdayParty: {
+            ifAllOf: ['age']
+        }
+    }
+}
+// Throws: "Conflict detected: Method 'throwBirthdayParty' is invoked by both a compact and an action"
+```
+
+---
+
+## Actions vs Compacts
+
+| Feature | Compacts | Actions |
+|---------|----------|---------|
+| **Syntax** | Naming convention | Explicit configuration |
+| **Simplicity** | Very simple | More verbose |
+| **Flexibility** | Limited patterns | Highly flexible |
+| **Conditions** | Implicit (from name) | Explicit (multiple options) |
+| **Combining** | Not supported | Multiple conditions AND-ed |
+| **JSON Serializable** | Yes (with string refs) | Yes (with string refs) |
+| **Best for** | Common patterns | Complex conditional logic |
+
+**When to use Compacts:**
+- Simple property transformations
+- Common reactive patterns
+- Minimal configuration needed
+
+**When to use Actions:**
+- Complex conditional logic
+- Multiple conditions need to be combined
+- Need fine-grained control over execution
+- Debugging complex reactive behavior
+
+---
+
+## Quick Reference - Actions
+
+| Condition | Triggers When | Re-triggers |
+|-----------|---------------|-------------|
+| `ifAllOf` | All properties truthy | On transition to "all met" |
+| `ifKeyIn` | Any property changes | On every change |
+| `ifNoneOf` | All properties falsy | On transition to "all falsy" |
+| `ifEquals` | All properties equal | On transition to "all equal" |
+| `ifAtLeastOneOf` | At least one truthy | On transition to "at least one" |
+| `ifNotAllOf` | Not all truthy | On transition to "not all" |
+
+**Testing**: See `tests/actions/` for comprehensive examples of each condition type.
