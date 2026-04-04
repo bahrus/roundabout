@@ -279,7 +279,7 @@ export class MoodStone extends O implements IMoodStoneActions {
         }
     }
     static override config: OConfig<IMoodStoneProps> = {
-        infractions: [calcAgePlus10, doSearch]
+        infractions: [calcAgePlus10, 'doSearch']
     }
 }
 ```
