@@ -30,8 +30,12 @@ export class RoundaboutManager {
         }
         if (!vm.covertAssignment) {
             vm.covertAssignment = async (obj) => {
-                const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-                await assignGingerly(vm, obj);
+                // Import covert property setter
+                const { covertlySetProperty } = await import('../utils/PropagatorSetup.js');
+                // Set properties covertly (without triggering events)
+                for (const [key, value] of Object.entries(obj)) {
+                    covertlySetProperty(vm, key, value);
+                }
             };
         }
         if (!vm.awake) {

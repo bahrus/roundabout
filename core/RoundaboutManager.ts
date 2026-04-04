@@ -41,8 +41,13 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
 
         if (!vm.covertAssignment) {
             vm.covertAssignment = async (obj: any) => {
-                const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-                await assignGingerly(vm, obj);
+                // Import covert property setter
+                const { covertlySetProperty } = await import('../utils/PropagatorSetup.js');
+                
+                // Set properties covertly (without triggering events)
+                for (const [key, value] of Object.entries(obj)) {
+                    covertlySetProperty(vm, key, value);
+                }
             };
         }
 
