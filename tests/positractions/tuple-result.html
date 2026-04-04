@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Positraction - Tuple Result with Null Skip Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting tuple result test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Function that returns multiple values
+            function calculateStats(value) {
+                addLog(`calculateStats called with: ${value}`);
+                return [
+                    value * 2,      // doubled
+                    value * value,  // squared
+                    value + 10      // plus10
+                ];
+            }
+
+            // Create view model
+            const myObject = {
+                inputValue: 5,
+                doubled: 0,
+                squared: 0,
+                plus10: 0,
+                calculateStats
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['inputValue', 'doubled', 'squared', 'plus10'],
+                positractions: [
+                    {
+                        ifKeyIn: ['inputValue'],
+                        do: 'calculateStats',
+                        pass: ['inputValue'],
+                        assignTo: ['doubled', null, 'plus10']  // Skip squared (null)
+                    }
+                ]
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`After init: doubled=${vm.doubled}, squared=${vm.squared}, plus10=${vm.plus10}`);
+
+            // Verify initial calculation
+            // doubled should be 10, squared should still be 0 (skipped), plus10 should be 15
+            if (vm.doubled !== 10 || vm.squared !== 0 || vm.plus10 !== 15) {
+                throw new Error(`Initial calculation failed: doubled=${vm.doubled}, squared=${vm.squared}, plus10=${vm.plus10}`);
+            }
+
+            // Change inputValue
+            addLog('Changing inputValue to 8...');
+            vm.inputValue = 8;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change: doubled=${vm.doubled}, squared=${vm.squared}, plus10=${vm.plus10}`);
+
+            // Verify: doubled=16, squared still 0, plus10=18
+            if (vm.doubled === 16 && vm.squared === 0 && vm.plus10 === 18) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! doubled=${vm.doubled}, squared=${vm.squared} (skipped), plus10=${vm.plus10}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected doubled=16, squared=0, plus10=18, got doubled=${vm.doubled}, squared=${vm.squared}, plus10=${vm.plus10}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

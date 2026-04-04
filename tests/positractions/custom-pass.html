@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Positraction - Custom Pass Parameters Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting custom pass parameters test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Custom function that takes multiple parameters
+            function calculateRange(min, max, multiplier) {
+                addLog(`calculateRange called: min=${min}, max=${max}, multiplier=${multiplier}`);
+                const range = max - min;
+                const scaled = range * multiplier;
+                return [range, scaled];
+            }
+
+            // Create view model
+            const myObject = {
+                minValue: 10,
+                maxValue: 50,
+                range: 0,
+                scaledRange: 0,
+                calculateRange
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['minValue', 'maxValue', 'range', 'scaledRange'],
+                positractions: [
+                    {
+                        ifKeyIn: ['minValue', 'maxValue'],
+                        do: 'calculateRange',
+                        pass: ['minValue', 'maxValue', 2],  // Pass properties and literal number
+                        assignTo: ['range', 'scaledRange']
+                    }
+                ]
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`After init: range=${vm.range}, scaledRange=${vm.scaledRange}`);
+
+            // Verify initial calculation
+            if (vm.range !== 40 || vm.scaledRange !== 80) {
+                throw new Error(`Initial calculation failed: range=${vm.range}, scaledRange=${vm.scaledRange}`);
+            }
+
+            // Change maxValue
+            addLog('Changing maxValue to 100...');
+            vm.maxValue = 100;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change: range=${vm.range}, scaledRange=${vm.scaledRange}`);
+
+            // Verify
+            if (vm.range === 90 && vm.scaledRange === 180) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! range=${vm.range}, scaledRange=${vm.scaledRange}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected range=90, scaledRange=180, got range=${vm.range}, scaledRange=${vm.scaledRange}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

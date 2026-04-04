@@ -1244,6 +1244,421 @@ const [vm] = await roundabout({
 
 ---
 
+## Positractions Reference
+
+Positractions (short for "positional reactions") enable calling generic, view-model-neutral functions with positional parameters and assigning results by position. Perfect for reusing pure functions across applications.
+
+### Pattern
+
+```typescript
+positractions: [
+    {
+        ifKeyIn: ['prop1', 'prop2'],     // Dependencies
+        do: functionOrMethodName,         // Function to call
+        pass: ['prop1', 'prop2', literal], // Arguments (optional)
+        assignTo: ['result1', 'result2']  // Where to assign results
+    }
+]
+```
+
+### Basic Example
+
+Use any generic function without coupling it to your view model:
+
+```typescript
+const [vm] = await roundabout({
+    vm: {
+        age: 25,
+        heightInInches: 68,
+        maxOfAgeAndHeightInInches: 0
+    },
+    propagate: ['age', 'heightInInches', 'maxOfAgeAndHeightInInches'],
+    positractions: [
+        {
+            ifKeyIn: ['age', 'heightInInches'],
+            do: Math.max,  // Generic function - no view model knowledge
+            assignTo: ['maxOfAgeAndHeightInInches']
+        }
+    ]
+});
+
+vm.age = 75;  // maxOfAgeAndHeightInInches automatically becomes 75
+```
+
+### Key Concepts
+
+#### 1. Positional Parameters
+
+By default, `ifKeyIn` properties are passed as arguments in order:
+
+```typescript
+{
+    ifKeyIn: ['width', 'height'],
+    do: Math.max,
+    // Calls: Math.max(vm.width, vm.height)
+    assignTo: ['maxDimension']
+}
+```
+
+#### 2. Positional Results
+
+Results are assigned by position. Non-array results are treated as single-element arrays:
+
+```typescript
+{
+    ifKeyIn: ['value'],
+    do: (x) => x * 2,  // Returns single value
+    assignTo: ['doubled']  // Assigned to first position
+}
+
+{
+    ifKeyIn: ['value'],
+    do: (x) => [x * 2, x * 3],  // Returns array
+    assignTo: ['doubled', 'tripled']  // Assigned by position
+}
+```
+
+#### 3. Custom Pass Parameters
+
+Override which arguments to pass and in what order:
+
+```typescript
+function calculateRange(min, max, multiplier) {
+    const range = max - min;
+    return [range, range * multiplier];
+}
+
+{
+    ifKeyIn: ['minValue', 'maxValue'],  // Dependencies
+    do: calculateRange,
+    pass: ['minValue', 'maxValue', 2],  // Arguments: props + literal
+    assignTo: ['range', 'scaledRange']
+}
+```
+
+### Pass Parameter Types
+
+The `pass` array supports multiple value types:
+
+#### Property Names (strings)
+```typescript
+pass: ['age', 'height']
+// Passes: vm.age, vm.height
+```
+
+#### Literal Numbers
+```typescript
+pass: ['value', 10, 2.5]
+// Passes: vm.value, 10, 2.5
+```
+
+#### Literal Booleans
+```typescript
+pass: ['enabled', true, false]
+// Passes: vm.enabled, true, false
+```
+
+#### String Literals (with backticks)
+```typescript
+pass: ['name', '`hello`']
+// Passes: vm.name, "hello" (literal string)
+```
+
+#### Self Reference
+```typescript
+pass: ['$0']
+// Passes: vm (the view model itself)
+```
+
+#### Enhancement Reference
+```typescript
+pass: ['$0+']
+// Passes: enhancement (for enhanced elements)
+```
+
+### String Resolution Rules
+
+For string values in `pass`:
+
+1. **If property exists on VM**: Pass property value
+2. **If property doesn't exist**: Pass as string literal
+3. **To force string literal**: Wrap in backticks: `` '`hello`' ``
+
+```typescript
+const vm = {
+    name: 'John',
+    greeting: 'Hello'
+};
+
+pass: ['name']        // Passes: 'John' (property value)
+pass: ['missing']     // Passes: 'missing' (string literal)
+pass: ['`name`']      // Passes: 'name' (forced literal)
+```
+
+### Skipping Results with Null
+
+Use `null` in `assignTo` to skip unwanted results:
+
+```typescript
+function calculateStats(value) {
+    return [
+        value * 2,      // doubled
+        value * value,  // squared
+        value + 10      // plus10
+    ];
+}
+
+{
+    ifKeyIn: ['inputValue'],
+    do: calculateStats,
+    pass: ['inputValue'],
+    assignTo: ['doubled', null, 'plus10']  // Skip squared
+}
+```
+
+### Conditional Execution
+
+Use `ifAllOf` for conditional execution:
+
+```typescript
+{
+    ifAllOf: ['enabled', 'ready'],  // Only execute when both truthy
+    ifKeyIn: ['value'],              // But monitor value changes
+    do: processValue,
+    assignTo: ['result']
+}
+```
+
+### Method Names (JSON Serializable)
+
+Reference methods by name for JSON serializability:
+
+```typescript
+class MyViewModel {
+    minValue = 10;
+    maxValue = 50;
+    range = 0;
+    
+    calculateRange = (min, max, multiplier) => {
+        return [(max - min), (max - min) * multiplier];
+    };
+}
+
+const [vm] = await roundabout({
+    vm: new MyViewModel(),
+    positractions: [
+        {
+            ifKeyIn: ['minValue', 'maxValue'],
+            do: 'calculateRange',  // Reference by name
+            pass: ['minValue', 'maxValue', 2],
+            assignTo: ['range', 'scaledRange']
+        }
+    ]
+});
+```
+
+### Complex Example: Loop Counter
+
+```typescript
+function getNextValOfLoop(currentVal, from, to, step = 1, loopIfMax = false) {
+    let hitMax = false;
+    let nextVal = currentVal;
+    let startedLoop = false;
+    
+    if (currentVal === undefined || currentVal === null || currentVal < from) {
+        nextVal = from;
+        startedLoop = true;
+    } else {
+        const possibleNextVal = currentVal + step;
+        if (possibleNextVal > to) {
+            if (loopIfMax) {
+                nextVal = from;
+            } else {
+                hitMax = true;
+            }
+        } else {
+            nextVal = possibleNextVal;
+        }
+    }
+    
+    return [nextVal, hitMax, startedLoop];
+}
+
+class TimeTicker {
+    ticks = 0;
+    idx = 0;
+    repeat = 10;
+    disabled = false;
+    enabled = false;
+    
+    getNextValOfLoop = getNextValOfLoop;
+}
+
+const [vm] = await roundabout({
+    vm: new TimeTicker(),
+    positractions: [
+        {
+            ifAllOf: ['ticks'],
+            do: 'getNextValOfLoop',
+            pass: ['idx', 0, 'repeat', 1, true],
+            assignTo: ['idx', 'disabled', 'enabled']
+        }
+    ]
+});
+```
+
+### Async Support
+
+Positractions support async functions:
+
+```typescript
+async function fetchAndProcess(userId) {
+    const data = await fetch(`/api/users/${userId}`);
+    const json = await data.json();
+    return [json, json.name, json.email];
+}
+
+{
+    ifKeyIn: ['userId'],
+    do: fetchAndProcess,
+    pass: ['userId'],
+    assignTo: ['userData', 'userName', 'userEmail']
+}
+```
+
+### Comparison with Other Features
+
+| Feature | Positractions | Infractions | Actions |
+|---------|---------------|-------------|---------|
+| **Function Type** | Generic/pure | View model aware | View model aware |
+| **Parameters** | Positional | Destructured | N/A |
+| **Results** | Positional array | Object merge | Object merge |
+| **Reusability** | High (generic) | Medium | Low |
+| **JSON Serializable** | With method names | With method names | Yes |
+| **Best for** | Pure functions | Calculations | Complex logic |
+
+**When to use Positractions:**
+- Reusing generic functions (Math.max, custom utilities)
+- Pure functions without view model coupling
+- Functions that return multiple values
+- Need positional parameter control
+
+**When to use Infractions:**
+- Functions aware of view model structure
+- Prefer destructured parameters
+- Single or object return values
+
+**When to use Actions:**
+- Complex conditional logic
+- Need multiple condition types
+- Transition-based triggers
+
+### Use Cases
+
+**Generic math operations:**
+```typescript
+{
+    ifKeyIn: ['a', 'b'],
+    do: Math.max,
+    assignTo: ['maximum']
+}
+```
+
+**String manipulation:**
+```typescript
+{
+    ifKeyIn: ['text'],
+    do: (str) => [str.toUpperCase(), str.toLowerCase(), str.length],
+    assignTo: ['upper', 'lower', 'length']
+}
+```
+
+**Array operations:**
+```typescript
+{
+    ifKeyIn: ['items'],
+    do: (arr) => [arr.length, arr[0], arr[arr.length - 1]],
+    assignTo: ['count', 'first', 'last']
+}
+```
+
+**Custom calculations:**
+```typescript
+function calculateStats(values) {
+    const sum = values.reduce((a, b) => a + b, 0);
+    const avg = sum / values.length;
+    const max = Math.max(...values);
+    return [sum, avg, max];
+}
+
+{
+    ifKeyIn: ['values'],
+    do: calculateStats,
+    assignTo: ['sum', 'average', 'maximum']
+}
+```
+
+### Tips
+
+- **Keep functions pure**: No side effects, just transformations
+- **Return arrays for multiple results**: Or single value for one result
+- **Use null to skip**: Don't assign unwanted results
+- **Leverage generics**: Reuse functions across different view models
+- **Test separately**: Pure functions are easy to unit test
+- **Mix with other features**: Combine with actions, infractions, compacts
+
+### Quick Reference
+
+**Basic:**
+```typescript
+{
+    ifKeyIn: ['a', 'b'],
+    do: Math.max,
+    assignTo: ['max']
+}
+```
+
+**Custom pass:**
+```typescript
+{
+    ifKeyIn: ['value'],
+    do: myFunction,
+    pass: ['value', 10, true],
+    assignTo: ['result']
+}
+```
+
+**Multiple results:**
+```typescript
+{
+    ifKeyIn: ['input'],
+    do: (x) => [x * 2, x * 3],
+    assignTo: ['doubled', 'tripled']
+}
+```
+
+**Skip result:**
+```typescript
+{
+    ifKeyIn: ['input'],
+    do: (x) => [x, x * 2, x * 3],
+    assignTo: ['value', null, 'tripled']  // Skip middle
+}
+```
+
+**Method name:**
+```typescript
+{
+    ifKeyIn: ['a', 'b'],
+    do: 'myMethod',
+    assignTo: ['result']
+}
+```
+
+**Testing**: See `tests/positractions/` for comprehensive examples.
+
+---
+
 
 ## Actions Reference
 
