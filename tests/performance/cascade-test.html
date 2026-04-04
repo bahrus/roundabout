@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Test - Cascade</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    <div id="metrics"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        const metricsDiv = document.getElementById('metrics');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        function showMetrics(metrics) {
+            metricsDiv.innerHTML = `
+                <h3>Performance Metrics</h3>
+                <table border="1" cellpadding="5">
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Total Time</td><td>${metrics.totalTime.toFixed(2)}ms</td></tr>
+                    <tr><td>Action Invocations</td><td>${metrics.actionInvocations}</td></tr>
+                    <tr><td>Property Sets</td><td>${metrics.propertySets}</td></tr>
+                    <tr><td>Event Dispatches</td><td>${metrics.eventDispatches}</td></tr>
+                    <tr><td>Avg Time per Action</td><td>${(metrics.totalTime / metrics.actionInvocations).toFixed(2)}ms</td></tr>
+                </table>
+            `;
+        }
+
+        try {
+            addLog('Starting cascade performance test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Performance tracking
+            const metrics = {
+                actionInvocations: 0,
+                propertySets: 0,
+                eventDispatches: 0,
+                totalTime: 0
+            };
+
+            // Create a complex interconnected system
+            // Simulates a calculation pipeline where each step depends on previous steps
+            const myObject = {
+                // Input values
+                input1: 1,
+                input2: 2,
+                input3: 3,
+                
+                // Level 1 calculations (depend on inputs)
+                sum12: 0,
+                sum23: 0,
+                sum13: 0,
+                
+                // Level 2 calculations (depend on level 1)
+                product: 0,
+                average: 0,
+                
+                // Level 3 calculations (depend on level 2)
+                variance: 0,
+                normalized: 0,
+                
+                // Level 4 final result (depends on level 3)
+                finalScore: 0,
+                
+                // Action methods
+                calculateSum12(self) {
+                    metrics.actionInvocations++;
+                    return { sum12: self.input1 + self.input2 };
+                },
+                
+                calculateSum23(self) {
+                    metrics.actionInvocations++;
+                    return { sum23: self.input2 + self.input3 };
+                },
+                
+                calculateSum13(self) {
+                    metrics.actionInvocations++;
+                    return { sum13: self.input1 + self.input3 };
+                },
+                
+                calculateProduct(self) {
+                    metrics.actionInvocations++;
+                    return { product: self.sum12 * self.sum23 };
+                },
+                
+                calculateAverage(self) {
+                    metrics.actionInvocations++;
+                    return { average: (self.sum12 + self.sum23 + self.sum13) / 3 };
+                },
+                
+                calculateVariance(self) {
+                    metrics.actionInvocations++;
+                    const mean = self.average;
+                    const variance = ((self.sum12 - mean) ** 2 + (self.sum23 - mean) ** 2 + (self.sum13 - mean) ** 2) / 3;
+                    return { variance };
+                },
+                
+                calculateNormalized(self) {
+                    metrics.actionInvocations++;
+                    return { normalized: self.product / (self.variance + 1) };
+                },
+                
+                calculateFinalScore(self) {
+                    metrics.actionInvocations++;
+                    return { finalScore: self.normalized * self.average };
+                }
+            };
+
+            addLog('Created complex calculation pipeline');
+
+            // Intercept property sets and event dispatches
+            const originalDefineProperty = Object.defineProperty;
+            let definePropertyCount = 0;
+            
+            const startTime = performance.now();
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    // Level 1: Triggered by inputs
+                    calculateSum12: { ifKeyIn: ['input1', 'input2'] },
+                    calculateSum23: { ifKeyIn: ['input2', 'input3'] },
+                    calculateSum13: { ifKeyIn: ['input1', 'input3'] },
+                    
+                    // Level 2: Triggered by level 1 results
+                    calculateProduct: { ifKeyIn: ['sum12', 'sum23'] },
+                    calculateAverage: { ifKeyIn: ['sum12', 'sum23', 'sum13'] },
+                    
+                    // Level 3: Triggered by level 2 results
+                    calculateVariance: { ifKeyIn: ['average'] },
+                    calculateNormalized: { ifKeyIn: ['product', 'variance'] },
+                    
+                    // Level 4: Triggered by level 3 results
+                    calculateFinalScore: { ifKeyIn: ['normalized'] }
+                }
+            });
+
+            // Track event dispatches
+            const originalDispatch = propagator.dispatchEvent.bind(propagator);
+            propagator.dispatchEvent = function(event) {
+                metrics.eventDispatches++;
+                return originalDispatch(event);
+            };
+
+            addLog('Roundabout initialized');
+            addLog(`Initial finalScore: ${vm.finalScore}`);
+
+            // Trigger the cascade by changing input values
+            addLog('Triggering cascade by changing inputs...');
+            
+            const cascadeStart = performance.now();
+            
+            // Change all three inputs - should trigger entire cascade
+            vm.input1 = 10;
+            metrics.propertySets++;
+            
+            vm.input2 = 20;
+            metrics.propertySets++;
+            
+            vm.input3 = 30;
+            metrics.propertySets++;
+            
+            // Wait for all async operations to complete
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            const cascadeEnd = performance.now();
+            metrics.totalTime = cascadeEnd - cascadeStart;
+
+            addLog(`Cascade complete in ${metrics.totalTime.toFixed(2)}ms`);
+            addLog(`Final score: ${vm.finalScore}`);
+            addLog(`Action invocations: ${metrics.actionInvocations}`);
+            addLog(`Event dispatches: ${metrics.eventDispatches}`);
+            
+            showMetrics(metrics);
+
+            // Verify correctness
+            const expectedSum12 = 10 + 20; // 30
+            const expectedSum23 = 20 + 30; // 50
+            const expectedSum13 = 10 + 30; // 40
+            const expectedProduct = 30 * 50; // 1500
+            const expectedAverage = (30 + 50 + 40) / 3; // 40
+            const expectedVariance = ((30 - 40) ** 2 + (50 - 40) ** 2 + (40 - 40) ** 2) / 3; // 66.67
+            const expectedNormalized = 1500 / (expectedVariance + 1); // ~22.15
+            const expectedFinalScore = expectedNormalized * expectedAverage; // ~886
+            
+            const isCorrect = Math.abs(vm.finalScore - expectedFinalScore) < 0.01;
+            
+            if (isCorrect && metrics.actionInvocations > 0) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Cascade completed correctly`;
+                addLog('TEST PASSED');
+                
+                // Log optimization potential
+                addLog('');
+                addLog('=== OPTIMIZATION ANALYSIS ===');
+                addLog(`Current: ${metrics.actionInvocations} action invocations`);
+                addLog(`Current: ${metrics.eventDispatches} event dispatches`);
+                addLog(`Theoretical minimum actions: 8 (one per action method)`);
+                addLog(`Potential savings: ${metrics.actionInvocations - 8} redundant invocations`);
+                addLog(`Event overhead: ${metrics.eventDispatches} events fired`);
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected finalScore≈${expectedFinalScore.toFixed(2)}, got ${vm.finalScore}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

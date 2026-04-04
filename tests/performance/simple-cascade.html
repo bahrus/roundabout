@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Performance Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    <div id="metrics"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        const metricsDiv = document.getElementById('metrics');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        function showMetrics(metrics) {
+            metricsDiv.innerHTML = `
+                <h3>Performance Metrics - Current Implementation</h3>
+                <table border="1" cellpadding="5">
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Total Time</td><td>${metrics.totalTime.toFixed(2)}ms</td></tr>
+                    <tr><td>Action Invocations</td><td>${metrics.actionInvocations}</td></tr>
+                    <tr><td>Property Sets (via setter)</td><td>${metrics.propertySets}</td></tr>
+                    <tr><td>assignGingerly Calls</td><td>${metrics.assignGingerlyCalls}</td></tr>
+                </table>
+                <h4>Analysis</h4>
+                <p><strong>Current Approach:</strong> Each property set fires an event, triggering reactions immediately.</p>
+                <p><strong>Observations:</strong></p>
+                <ul>
+                    <li>Action invoked ${metrics.actionInvocations} times</li>
+                    <li>Each invocation calls assignGingerly (${metrics.assignGingerlyCalls} calls)</li>
+                    <li>assignGingerly sets properties via setters (${metrics.propertySets} sets)</li>
+                    <li>Each setter fires an event, potentially triggering more reactions</li>
+                </ul>
+                <p><strong>Potential Optimization:</strong> Use covertAssignment to batch changes, evaluate conditions once, then fire events.</p>
+            `;
+        }
+
+        try {
+            addLog('Starting simple cascade performance test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const metrics = {
+                actionInvocations: 0,
+                propertySets: 0,
+                assignGingerlyCalls: 0,
+                totalTime: 0
+            };
+
+            // Simple 3-level cascade
+            const myObject = {
+                a: 1,
+                b: 2,
+                sum: 0,
+                double: 0,
+                final: 0,
+                
+                calculateSum(self) {
+                    metrics.actionInvocations++;
+                    addLog(`calculateSum: a=${self.a}, b=${self.b} → sum=${self.a + self.b}`);
+                    return { sum: self.a + self.b };
+                },
+                
+                calculateDouble(self) {
+                    metrics.actionInvocations++;
+                    addLog(`calculateDouble: sum=${self.sum} → double=${self.sum * 2}`);
+                    return { double: self.sum * 2 };
+                },
+                
+                calculateFinal(self) {
+                    metrics.actionInvocations++;
+                    addLog(`calculateFinal: double=${self.double} → final=${self.double + 10}`);
+                    return { final: self.double + 10 };
+                }
+            };
+
+            addLog('Created simple calculation pipeline');
+
+            const startTime = performance.now();
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    calculateSum: { ifKeyIn: ['a', 'b'] },
+                    calculateDouble: { ifKeyIn: ['sum'] },
+                    calculateFinal: { ifKeyIn: ['double'] }
+                }
+            });
+
+            addLog('Roundabout initialized');
+            
+            // Wait for initial evaluation to complete
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After init: a=${vm.a}, b=${vm.b}, sum=${vm.sum}, double=${vm.double}, final=${vm.final}`);
+
+            addLog('Triggering cascade by changing a and b...');
+            
+            const cascadeStart = performance.now();
+            
+            // Change both inputs
+            vm.a = 10;
+            
+            // Wait a bit for first change to propagate
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            vm.b = 20;
+            
+            // Wait for cascade to fully complete
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const cascadeEnd = performance.now();
+            metrics.totalTime = cascadeEnd - cascadeStart;
+
+            addLog(`Cascade complete in ${metrics.totalTime.toFixed(2)}ms`);
+            addLog(`Final values: sum=${vm.sum}, double=${vm.double}, final=${vm.final}`);
+            
+            showMetrics(metrics);
+
+            // Verify correctness
+            const expectedSum = 10 + 20; // 30
+            const expectedDouble = 30 * 2; // 60
+            const expectedFinal = 60 + 10; // 70
+            
+            const isCorrect = vm.sum === expectedSum && vm.double === expectedDouble && vm.final === expectedFinal;
+            
+            if (isCorrect) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Cascade completed correctly`;
+                addLog('TEST PASSED');
+                addLog('');
+                addLog('=== KEY INSIGHT ===');
+                addLog(`With internal routing optimization:`);
+                addLog(`- Could batch all changes from action returns`);
+                addLog(`- Evaluate conditions once on accumulated state`);
+                addLog(`- Fire events only at the end`);
+                addLog(`- Potentially reduce redundant work`);
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected final=${expectedFinal}, got ${vm.final}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
