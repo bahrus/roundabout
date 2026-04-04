@@ -459,7 +459,7 @@ It does optional chaining access, but in reverse.
 The syntax looks like:
 
 ```JavaScript
-const log = await assignGingerly(destObj, {
+const log = assignGingerly(destObj, {
     myProp1: 'hello',
     '?.myProp2?.mySubProp3': 'goodbye'
 });
