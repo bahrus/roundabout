@@ -18,5 +18,9 @@ export interface RoundaboutReady{
 
 After doing the covertAssignment, I would run through the relevant AND conditions that could be affected by the object returned by the action method. I wouldn't treat each property change as individual changes.  If one method depends on two properties, and both change, I would only call the action method. That itself could result in more actions returning objects, so a kind of "bus" of changes would accumulate.  Once the bus was fully exhausted, only then would I dispatch the events due to property changes manually (not via the property setter).
 
+Among other things to consider, you are creating storage for properties you create.  How can you give the vm's covertAssignment access to it?
+
+
+
 
 
