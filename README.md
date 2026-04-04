@@ -740,6 +740,207 @@ vm.status = 'active';  // → 'status-changed' event is dispatched
 - **Chaining**: Multiple compacts can work together - one compact's output can trigger another
 - **Testing**: Each compact type has test examples in `tests/compacts/`
 
+---
+
+## Hitches Reference
+
+Hitches coordinate three members of the view model: an EventTarget element, an event type property, and a target property to modify. They're perfect for connecting DOM events to view model state.
+
+### Pattern
+
+```typescript
+hitch: {
+    when_X_emits_Y_inc_Z_by: number
+}
+```
+
+- **X**: Property containing an EventTarget (element or WeakRef<element>)
+- **Y**: Property containing the event name (string)
+- **Z**: Property to increment
+- **Value**: The increment amount (number)
+
+### Basic Example
+
+```typescript
+const myObject = {
+    button: document.querySelector('#myButton'),
+    eventName: 'click',
+    clickCount: 0
+};
+
+const [vm] = await roundabout({
+    vm: myObject,
+    propagate: ['clickCount'],
+    hitch: {
+        when_button_emits_eventName_inc_clickCount_by: 1
+    }
+});
+
+// Now clicking the button increments clickCount
+```
+
+### Dynamic Element Changes
+
+Hitches automatically handle element changes:
+
+```typescript
+const myObject = {
+    activeButton: button1,  // Start with button1
+    eventName: 'click',
+    count: 0
+};
+
+const [vm] = await roundabout({
+    vm: myObject,
+    propagate: ['activeButton', 'count'],
+    hitch: {
+        when_activeButton_emits_eventName_inc_count_by: 1
+    }
+});
+
+// Clicks on button1 increment count
+button1.click();  // count = 1
+
+// Change to button2
+vm.activeButton = button2;
+
+// Now clicks on button2 increment count
+button2.click();  // count = 2
+
+// button1 clicks no longer affect count
+button1.click();  // count still = 2
+```
+
+**Behavior:**
+- When element property changes, old listener is automatically removed
+- New listener is attached to the new element
+- If element becomes falsy, listener is removed (no error)
+
+### Dynamic Event Type Changes
+
+Hitches also handle event type changes:
+
+```typescript
+const myObject = {
+    button: document.querySelector('#myButton'),
+    eventType: 'click',  // Start with click
+    eventCount: 0
+};
+
+const [vm] = await roundabout({
+    vm: myObject,
+    propagate: ['eventType', 'eventCount'],
+    hitch: {
+        when_button_emits_eventType_inc_eventCount_by: 1
+    }
+});
+
+// Clicks increment count
+button.click();  // eventCount = 1
+
+// Change to mouseenter
+vm.eventType = 'mouseenter';
+
+// Now mouseenter increments count
+button.dispatchEvent(new MouseEvent('mouseenter'));  // eventCount = 2
+
+// Clicks no longer affect count
+button.click();  // eventCount still = 2
+```
+
+### WeakRef Support
+
+Hitches support WeakRef for elements to prevent memory leaks:
+
+```typescript
+const myObject = {
+    elementRef: new WeakRef(document.querySelector('#myElement')),
+    eventName: 'click',
+    count: 0
+};
+
+const [vm] = await roundabout({
+    vm: myObject,
+    hitch: {
+        when_elementRef_emits_eventName_inc_count_by: 1
+    }
+});
+
+// WeakRef is automatically dereferenced
+// If element is garbage collected, listener is cleaned up
+```
+
+### Cleanup
+
+Hitches automatically clean up listeners:
+
+```typescript
+const [vm, propagator] = await roundabout({
+    vm: myObject,
+    hitch: { /* ... */ }
+});
+
+// Later, when done:
+vm.RAController.abort();  // All hitch listeners are removed
+```
+
+### Use Cases
+
+**Click counters:**
+```typescript
+hitch: {
+    when_button_emits_click_inc_clickCount_by: 1
+}
+```
+
+**Multi-button interfaces:**
+```typescript
+// Track which button is active
+hitch: {
+    when_activeButton_emits_click_inc_actionCount_by: 1
+}
+```
+
+**Different event types:**
+```typescript
+// Switch between click, mouseenter, focus, etc.
+hitch: {
+    when_element_emits_eventType_inc_interactionCount_by: 1
+}
+```
+
+**Custom increments:**
+```typescript
+// Increment by different amounts
+hitch: {
+    when_button_emits_click_inc_score_by: 10
+}
+```
+
+### Error Handling
+
+Hitches handle edge cases gracefully:
+
+- **Element is falsy**: Listener removed, no error
+- **Element is not EventTarget**: Error logged to console, no crash
+- **Event type is falsy**: Listener removed, no error
+- **Target property not a number**: Initialized to increment value
+
+### Quick Reference
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| X (element) | EventTarget or WeakRef | Element to listen to |
+| Y (event) | string | Event type name |
+| Z (target) | number | Property to increment |
+| Value | number | Increment amount |
+
+**Pattern**: `when_X_emits_Y_inc_Z_by: number`
+
+**Testing**: See `tests/hitches/` for comprehensive examples.
+
+---
+
 
 ## Actions Reference
 

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hitch Event Change Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <button id="testButton">Test Button</button>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const button = document.getElementById('testButton');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting hitch event change test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create view model starting with 'click' event
+            const myObject = {
+                myButton: button,
+                eventName: 'click',
+                eventCount: 0
+            };
+
+            addLog('Created myObject with click event');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['eventName', 'eventCount'],
+                hitch: {
+                    when_myButton_emits_eventName_inc_eventCount_by: 1
+                }
+            });
+
+            addLog('Roundabout initialized');
+
+            // Click button - should increment
+            addLog('Clicking button...');
+            button.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After click: eventCount = ${vm.eventCount}`);
+
+            // Dispatch mouseenter - should NOT increment (not listening to it)
+            addLog('Dispatching mouseenter event...');
+            button.dispatchEvent(new MouseEvent('mouseenter'));
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After mouseenter: eventCount = ${vm.eventCount}`);
+
+            // Change event type to mouseenter
+            addLog('Changing eventName to mouseenter...');
+            vm.eventName = 'mouseenter';
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Click button - should NOT increment anymore
+            addLog('Clicking button (listening to mouseenter now)...');
+            button.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After click: eventCount = ${vm.eventCount}`);
+
+            // Dispatch mouseenter - should increment now
+            addLog('Dispatching mouseenter event...');
+            button.dispatchEvent(new MouseEvent('mouseenter'));
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After mouseenter: eventCount = ${vm.eventCount}`);
+
+            // Verify: should be 2 (1 from click, 1 from mouseenter)
+            if (vm.eventCount === 2) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! eventCount = ${vm.eventCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected eventCount=2, got ${vm.eventCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

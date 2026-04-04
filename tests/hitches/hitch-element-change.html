@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hitch Element Change Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <button id="button1">Button 1</button>
+    <button id="button2">Button 2</button>
+    <div id="log"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const button1 = document.getElementById('button1');
+        const button2 = document.getElementById('button2');
+        const log = document.getElementById('log');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting hitch element change test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create view model starting with button1
+            const myObject = {
+                activeButton: button1,
+                eventName: 'click',
+                clickCount: 0
+            };
+
+            addLog('Created myObject with button1');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['activeButton', 'clickCount'],
+                hitch: {
+                    when_activeButton_emits_eventName_inc_clickCount_by: 1
+                }
+            });
+
+            addLog('Roundabout initialized');
+
+            // Click button1 - should increment
+            addLog('Clicking button1...');
+            button1.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After button1 click: clickCount = ${vm.clickCount}`);
+
+            // Click button2 - should NOT increment (not the active button)
+            addLog('Clicking button2 (not active)...');
+            button2.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After button2 click: clickCount = ${vm.clickCount}`);
+
+            // Change active button to button2
+            addLog('Changing activeButton to button2...');
+            vm.activeButton = button2;
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Click button1 - should NOT increment anymore
+            addLog('Clicking button1 (no longer active)...');
+            button1.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After button1 click: clickCount = ${vm.clickCount}`);
+
+            // Click button2 - should increment now
+            addLog('Clicking button2 (now active)...');
+            button2.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After button2 click: clickCount = ${vm.clickCount}`);
+
+            // Verify: should be 2 (1 from button1, 1 from button2)
+            if (vm.clickCount === 2) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! clickCount = ${vm.clickCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected clickCount=2, got ${vm.clickCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
