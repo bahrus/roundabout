@@ -1,9 +1,18 @@
 export async function processCompacts(vm, compacts, onChange) {
     const reactions = new Map();
+    const vmAny = vm;
+    // Track methods invoked by compacts for conflict detection with actions
+    if (!vmAny.__roundaboutCompactMethods) {
+        vmAny.__roundaboutCompactMethods = new Set();
+    }
     for (const [compactKey, delayOrProp] of Object.entries(compacts)) {
         const parsed = await parseCompact(compactKey, delayOrProp);
         if (!parsed)
             continue;
+        // Track if this compact calls a method
+        if (parsed.type === 'call' && parsed.methodName) {
+            vmAny.__roundaboutCompactMethods.add(parsed.methodName);
+        }
         // Register reaction for the source property
         if (!reactions.has(parsed.sourceProp)) {
             reactions.set(parsed.sourceProp, []);
@@ -14,7 +23,6 @@ export async function processCompacts(vm, compacts, onChange) {
         reactions.get(parsed.sourceProp).push(reactionFn);
     }
     // Store reactions on the VM so RoundaboutManager can trigger them
-    const vmAny = vm;
     if (!vmAny.__roundaboutReactions) {
         vmAny.__roundaboutReactions = new Map();
     }

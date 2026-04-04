@@ -151,6 +151,18 @@ export function inferPropertiesToMonitor(options: any): Set<string> {
                 const arr = Array.isArray(actionConfig.ifAtLeastOneOf) ? actionConfig.ifAtLeastOneOf : [actionConfig.ifAtLeastOneOf];
                 arr.forEach((p: string) => props.add(p));
             }
+            if (actionConfig.ifNoneOf) {
+                const arr = Array.isArray(actionConfig.ifNoneOf) ? actionConfig.ifNoneOf : [actionConfig.ifNoneOf];
+                arr.forEach((p: string) => props.add(p));
+            }
+            if (actionConfig.ifEquals) {
+                const arr = Array.isArray(actionConfig.ifEquals) ? actionConfig.ifEquals : [actionConfig.ifEquals];
+                arr.forEach((p: string) => props.add(p));
+            }
+            if (actionConfig.ifNotAllOf) {
+                const arr = Array.isArray(actionConfig.ifNotAllOf) ? actionConfig.ifNotAllOf : [actionConfig.ifNotAllOf];
+                arr.forEach((p: string) => props.add(p));
+            }
         }
     }
     

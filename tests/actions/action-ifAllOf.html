@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action ifAllOf Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting ifAllOf action test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const myObject = {
+                username: '',
+                password: '',
+                email: '',
+                formValid: false,
+                
+                validateForm(self, context) {
+                    addLog(`validateForm called! Changed: ${context.changedProperty}`);
+                    return {
+                        formValid: true
+                    };
+                }
+            };
+
+            addLog('Created myObject');
+
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    validateForm: {
+                        ifAllOf: ['username', 'password', 'email']
+                    }
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: formValid=${vm.formValid}`);
+            
+            // Set properties one by one - should not trigger until all are set
+            vm.username = 'john';
+            addLog(`Set username`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After username: formValid=${vm.formValid}`);
+            
+            vm.password = 'secret123';
+            addLog(`Set password`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After password: formValid=${vm.formValid}`);
+            
+            vm.email = 'john@example.com';
+            addLog(`Set email`);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After email: formValid=${vm.formValid}`);
+            
+            if (vm.formValid === true) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Form validated when all fields set`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected formValid=true, got ${vm.formValid}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
