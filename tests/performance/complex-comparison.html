@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Performance Comparison - Diamond Dependencies</title>
+    <!-- #include virtual="/imports.html" -->
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .comparison { display: flex; gap: 20px; margin: 20px 0; }
+        .test-result { flex: 1; border: 1px solid #ccc; padding: 15px; border-radius: 5px; }
+        .test-result.winner { background-color: #e8f5e9; border-color: #4caf50; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f5f5f5; }
+        .metric-value { font-weight: bold; }
+        .improvement { color: #4caf50; font-weight: bold; }
+        h2 { margin-top: 0; }
+        .diagram { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Complex Performance Comparison</h1>
+    <p><strong>Scenario:</strong> Diamond dependency pattern where multiple paths lead to the same action</p>
+    
+    <div class="diagram">
+        <pre>
+    input1, input2, input3
+         ↓       ↓       ↓
+       sum1    sum2    sum3
+         ↓       ↓       ↓
+         └───→ total ←───┘
+                 ↓
+              result
+        </pre>
+        <p>When an action returns multiple properties (sum1, sum2, sum3), 
+        the 'total' action should run ONCE, not three times.</p>
+    </div>
+    
+    <div id="target">Testing...</div>
+    <div id="status"></div>
+    
+    <div class="comparison">
+        <div class="test-result" id="traditional-result">
+            <h2>Traditional Approach</h2>
+            <p>Each property fires event immediately</p>
+            <div id="traditional-metrics"></div>
+        </div>
+        
+        <div class="test-result" id="internal-routing-result">
+            <h2>Internal Routing</h2>
+            <p>Batches changes, evaluates once</p>
+            <div id="internal-routing-metrics"></div>
+        </div>
+    </div>
+    
+    <div id="analysis"></div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        const status = document.getElementById('status');
+        
+        function addStatus(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            status.appendChild(p);
+            console.log(msg);
+        }
+
+        function showMetrics(containerId, metrics, label) {
+            const container = document.getElementById(containerId);
+            container.innerHTML += `
+                <h3>Results</h3>
+                <table>
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Total Time</td><td class="metric-value">${metrics.totalTime.toFixed(2)}ms</td></tr>
+                    <tr><td>Action Invocations</td><td class="metric-value">${metrics.actionInvocations}</td></tr>
+                    <tr><td>calculateTotal calls</td><td class="metric-value">${metrics.totalCalls}</td></tr>
+                    <tr><td>Avg Time per Iteration</td><td class="metric-value">${(metrics.totalTime / 10).toFixed(2)}ms</td></tr>
+                </table>
+            `;
+        }
+
+        function showComparison(traditional, internalRouting) {
+            const timeDiff = traditional.totalTime - internalRouting.totalTime;
+            const timeImprovement = ((timeDiff / traditional.totalTime) * 100).toFixed(1);
+            const callDiff = traditional.totalCalls - internalRouting.totalCalls;
+            
+            // Highlight winner
+            if (timeDiff > 0) {
+                document.getElementById('internal-routing-result').classList.add('winner');
+            } else {
+                document.getElementById('traditional-result').classList.add('winner');
+            }
+            
+            const analysis = document.getElementById('analysis');
+            analysis.innerHTML = `
+                <h2>Analysis</h2>
+                <table>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Traditional</th>
+                        <th>Internal Routing</th>
+                        <th>Difference</th>
+                    </tr>
+                    <tr>
+                        <td>Total Time</td>
+                        <td>${traditional.totalTime.toFixed(2)}ms</td>
+                        <td>${internalRouting.totalTime.toFixed(2)}ms</td>
+                        <td class="${timeDiff > 0 ? 'improvement' : ''}">${timeDiff > 0 ? '-' : '+'}${Math.abs(timeDiff).toFixed(2)}ms (${timeDiff > 0 ? '-' : '+'}${Math.abs(parseFloat(timeImprovement))}%)</td>
+                    </tr>
+                    <tr>
+                        <td>calculateTotal Calls</td>
+                        <td>${traditional.totalCalls}</td>
+                        <td>${internalRouting.totalCalls}</td>
+                        <td class="${callDiff > 0 ? 'improvement' : ''}">${callDiff > 0 ? '-' : '+'}${Math.abs(callDiff)} calls</td>
+                    </tr>
+                </table>
+                <h3>Conclusion</h3>
+                <p><strong>Key Insight:</strong> ${callDiff > 0 
+                    ? `Internal routing eliminated ${callDiff} redundant calls to calculateTotal!`
+                    : `Both approaches had similar call counts.`
+                }</p>
+                <p>${timeDiff > 0 
+                    ? `Internal routing is <strong>${timeImprovement}% faster</strong> by batching changes.`
+                    : `Traditional approach is <strong>${Math.abs(parseFloat(timeImprovement))}% faster</strong>, suggesting overhead exceeds benefit for this scenario.`
+                }</p>
+            `;
+        }
+
+        async function runTest(useInternalRouting, label) {
+            addStatus(`\nRunning ${label}...`);
+            
+            const metrics = {
+                actionInvocations: 0,
+                totalCalls: 0,
+                totalTime: 0
+            };
+
+            // Create test object with diamond dependency
+            const myObject = {
+                input1: 1,
+                input2: 2,
+                input3: 3,
+                sum1: 0,
+                sum2: 0,
+                sum3: 0,
+                total: 0,
+                result: 0,
+                
+                // This action returns MULTIPLE properties at once
+                // Creating a scenario where 'total' could be called multiple times
+                calculateSums(self) {
+                    metrics.actionInvocations++;
+                    // Return all three sums at once
+                    return {
+                        sum1: self.input1 * 2,
+                        sum2: self.input2 * 2,
+                        sum3: self.input3 * 2
+                    };
+                },
+                
+                // This action depends on sum1, sum2, sum3
+                // In traditional approach: called 3 times (once per sum property)
+                // In internal routing: called 1 time (batched)
+                calculateTotal(self) {
+                    metrics.actionInvocations++;
+                    metrics.totalCalls++;
+                    return { total: self.sum1 + self.sum2 + self.sum3 };
+                },
+                
+                calculateResult(self) {
+                    metrics.actionInvocations++;
+                    return { result: self.total * 10 };
+                }
+            };
+
+            const { roundabout } = await import('../../index.js');
+            
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                actions: {
+                    calculateSums: { ifKeyIn: ['input1', 'input2', 'input3'] },
+                    calculateTotal: { ifKeyIn: ['sum1', 'sum2', 'sum3'] },
+                    calculateResult: { ifKeyIn: ['total'] }
+                },
+                internalRouting: useInternalRouting
+            });
+
+            // Wait for initial evaluation
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            addStatus(`${label}: Initial result=${vm.result}`);
+
+            // Run the cascade multiple times
+            const iterations = 10;
+            const times = [];
+            
+            for (let i = 0; i < iterations; i++) {
+                const start = performance.now();
+                
+                // Change all three inputs - this triggers calculateSums
+                // which returns sum1, sum2, sum3 all at once
+                vm.input1 = 10 + i;
+                vm.input2 = 20 + i;
+                vm.input3 = 30 + i;
+                
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const end = performance.now();
+                times.push(end - start);
+            }
+
+            // Calculate average time
+            metrics.totalTime = times.reduce((a, b) => a + b, 0) / iterations;
+
+            addStatus(`${label}: Completed ${iterations} iterations`);
+            addStatus(`${label}: Average time = ${metrics.totalTime.toFixed(2)}ms`);
+            addStatus(`${label}: Total action invocations = ${metrics.actionInvocations}`);
+            addStatus(`${label}: calculateTotal called ${metrics.totalCalls} times`);
+            addStatus(`${label}: Final result = ${vm.result}`);
+
+            return metrics;
+        }
+
+        try {
+            addStatus('Starting complex performance comparison...');
+            addStatus('Testing diamond dependency pattern...');
+            
+            // Run traditional approach
+            const traditionalMetrics = await runTest(false, 'Traditional');
+            showMetrics('traditional-metrics', traditionalMetrics, 'Traditional');
+            
+            // Wait a bit between tests
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Run internal routing approach
+            const internalRoutingMetrics = await runTest(true, 'Internal Routing');
+            showMetrics('internal-routing-metrics', internalRoutingMetrics, 'Internal Routing');
+            
+            // Show comparison
+            showComparison(traditionalMetrics, internalRoutingMetrics);
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = '✓ Complex performance comparison complete';
+            addStatus('\nTEST PASSED');
+        } catch (error) {
+            addStatus(`ERROR: ${error.message}`);
+            addStatus(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

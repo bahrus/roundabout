@@ -96,7 +96,8 @@
                     calculateSum: { ifKeyIn: ['a', 'b'] },
                     calculateDouble: { ifKeyIn: ['sum'] },
                     calculateFinal: { ifKeyIn: ['double'] }
-                }
+                },
+                internalRouting: true // Enable for this test
             });
 
             addLog('Roundabout initialized');

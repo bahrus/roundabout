@@ -145,7 +145,8 @@
                     
                     // Level 4: Triggered by level 3 results
                     calculateFinalScore: { ifKeyIn: ['normalized'] }
-                }
+                },
+                internalRouting: true  // Enable for complex cascade
             });
 
             // Track event dispatches

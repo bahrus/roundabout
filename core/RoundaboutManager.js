@@ -130,7 +130,8 @@ export class RoundaboutManager {
     }
     async processActions() {
         const { processActions } = await import('../processors/actions.js');
-        const cleanup = await processActions(this.vm, this.options.actions, (key) => this.handlePropertyChange(key, this.vm[key]));
+        const cleanup = await processActions(this.vm, this.options.actions, (key) => this.handlePropertyChange(key, this.vm[key]), this.options.internalRouting === true // Default to false (traditional)
+        );
         this.cleanupFunctions.push(cleanup);
     }
     async processHandlers() {

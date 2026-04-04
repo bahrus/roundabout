@@ -167,7 +167,8 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         const cleanup = await processActions(
             this.vm,
             this.options.actions!,
-            (key: string) => this.handlePropertyChange(key, this.vm[key as keyof typeof this.vm])
+            (key: string) => this.handlePropertyChange(key, this.vm[key as keyof typeof this.vm]),
+            this.options.internalRouting === true // Default to false (traditional)
         );
         this.cleanupFunctions.push(cleanup);
     }

@@ -8,9 +8,13 @@ interface ActionContext {
 export async function processActions<TProps = any, TActions = TProps>(
     vm: TProps & TActions,
     actions: Actions<TProps, TActions>,
-    onChange: (key: string) => Promise<void>
+    onChange: (key: string) => Promise<void>,
+    useInternalRouting: boolean = false
 ): Promise<() => void> {
     const vmAny = vm as any;
+    
+    // Store the internal routing flag on VM
+    vmAny.__roundaboutUseInternalRouting = useInternalRouting;
     
     // Check for conflicts with compacts
     checkForCompactConflicts(vmAny, actions);
@@ -41,6 +45,7 @@ export async function processActions<TProps = any, TActions = TProps>(
     return () => {
         actionStates.clear();
         delete vmAny.__roundaboutActionStates;
+        delete vmAny.__roundaboutUseInternalRouting;
     };
 }
 
@@ -440,9 +445,19 @@ async function executeAction<TProps, TActions>(
         return;
     }
     
-    // Merge result back if it's an object - use internal routing
+    // Merge result back if it's an object
     if (result && typeof result === 'object' && !Array.isArray(result)) {
-        await processActionResult(vm, result, config.debug);
+        // Check if internal routing is enabled
+        const useInternalRouting = vmAny.__roundaboutUseInternalRouting !== false;
+        
+        if (useInternalRouting) {
+            // Use internal routing optimization
+            await processActionResult(vm, result, config.debug);
+        } else {
+            // Use traditional approach with assignGingerly
+            const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
+            await assignGingerly(vm, result);
+        }
     }
 }
 
