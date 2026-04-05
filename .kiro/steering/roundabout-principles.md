@@ -36,6 +36,47 @@ inclusion: auto
 - Server-side includes (SSI) are used to inject import maps: `<!-- #include virtual="/imports.html" -->`
 - Compile TypeScript to JavaScript using `tsc` before running tests
 
+### Custom Event Classes
+- **Event Classes over CustomEvent**: When dispatching events, define custom classes that extend the Event class rather than using CustomEvent with detail objects
+- Create dedicated event classes that extend Event
+- Define event properties as public class members
+- Include a static eventName property for the event type string (when applicable)
+- Export corresponding interfaces for type safety
+
+#### Pattern
+```typescript
+// Events.ts - Event class definitions
+export class PropertyChangeEvent extends Event {
+    constructor(
+        public propertyName: string,
+        public oldValue: any,
+        public newValue: any
+    ) {
+        super(propertyName);
+    }
+}
+
+// Usage in code
+propagator.dispatchEvent(new PropertyChangeEvent(prop, oldValue, newValue));
+
+// Listening with proper typing
+propagator.addEventListener('myProp', (e: PropertyChangeEvent) => {
+    console.log(e.propertyName, e.oldValue, e.newValue);
+});
+```
+
+#### Why this matters
+- CustomEvent is a legacy approach that uses untyped detail objects
+- Custom event classes provide better type safety and IDE autocomplete
+- Properties are directly accessible without going through event.detail
+- Follows modern JavaScript/TypeScript best practices
+- Makes the API more discoverable and self-documenting
+
+#### When to apply
+- All event dispatching in the library
+- When defining public event APIs
+- When you need strongly-typed event data
+
 ### Type Safety
 - Leverage TypeScript's type system for compile-time safety
 - Use generic types to maintain flexibility while ensuring correctness

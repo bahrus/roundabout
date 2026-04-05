@@ -2,6 +2,7 @@
  * Dynamically sets up a propagator and converts properties to getter/setters
  * that fire events when changed.
  */
+import { PropertyChangeEvent } from '../core/Events.js';
 /**
  * Covertly set a property value without triggering events
  * Used for internal routing optimization
@@ -144,9 +145,7 @@ async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPl
                     storage[storageKey] = newValue;
                 }
                 // Fire event on propagator
-                propagator.dispatchEvent(new CustomEvent(prop, {
-                    detail: { oldValue, newValue }
-                }));
+                propagator.dispatchEvent(new PropertyChangeEvent(prop, oldValue, newValue));
             }
         },
         enumerable: true,

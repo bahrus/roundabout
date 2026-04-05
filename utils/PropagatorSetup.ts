@@ -3,6 +3,8 @@
  * that fire events when changed.
  */
 
+import { PropertyChangeEvent } from '../core/Events.js';
+
 /**
  * Covertly set a property value without triggering events
  * Used for internal routing optimization
@@ -169,9 +171,7 @@ async function convertPropertyToGetterSetter(
                 }
                 
                 // Fire event on propagator
-                propagator.dispatchEvent(new CustomEvent(prop, { 
-                    detail: { oldValue, newValue } 
-                }));
+                propagator.dispatchEvent(new PropertyChangeEvent(prop, oldValue, newValue));
             }
         },
         enumerable: true,

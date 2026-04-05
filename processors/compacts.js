@@ -175,7 +175,8 @@ async function executeCompact(vm, parsed, sourceValue) {
             break;
         case 'dispatch':
             if (parsed.eventName && vmAny.propagator) {
-                vmAny.propagator.dispatchEvent(new CustomEvent(parsed.eventName, { detail: sourceValue }));
+                const { CompactDispatchEvent } = await import('../core/Events.js');
+                vmAny.propagator.dispatchEvent(new CompactDispatchEvent(parsed.eventName, sourceValue));
             }
             break;
     }

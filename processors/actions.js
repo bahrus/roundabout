@@ -442,9 +442,8 @@ async function processActionResult(vm, result, debug) {
                 if (debug) {
                     console.log(`[Internal Routing] Firing event for: ${prop} = ${newValue}`);
                 }
-                propagator.dispatchEvent(new CustomEvent(prop, {
-                    detail: { oldValue: undefined, newValue }
-                }));
+                const { PropertyChangeEvent } = await import('../core/Events.js');
+                propagator.dispatchEvent(new PropertyChangeEvent(prop, undefined, newValue));
             }
         }
     }

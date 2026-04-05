@@ -64,8 +64,8 @@ export class RoundaboutManager {
         // Subscribe to propagator events to trigger reactions
         for (const prop of propertiesToMonitor) {
             this.propagator.addEventListener(prop, (event) => {
-                const customEvent = event;
-                this.handlePropertyChange(prop, customEvent.detail.newValue).catch(err => {
+                const propChangeEvent = event; // PropertyChangeEvent
+                this.handlePropertyChange(prop, propChangeEvent.newValue).catch(err => {
                     console.error(`Error handling property change for ${prop}:`, err);
                 });
             }, { signal: this.abortController.signal });
