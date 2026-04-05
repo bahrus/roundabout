@@ -1,15 +1,15 @@
-import type { roundaboutOptions, RoundaboutReady } from '../types/roundabout/types.js';
+import type { RoundaboutOptions, RoundaboutReady } from '../types/roundabout/types.js';
 
 export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps> {
     private vm!: TProps & TActions & RoundaboutReady;
     private propagator: EventTarget;
-    private options: roundaboutOptions<TProps, TActions, ETProps>;
+    private options: RoundaboutOptions<TProps, TActions, ETProps>;
     private abortController: AbortController;
     private processingQueue: Map<string, Promise<void>>;
     private cleanupFunctions: Array<() => void> = [];
 
     constructor(
-        options: roundaboutOptions<TProps, TActions, ETProps>,
+        options: RoundaboutOptions<TProps, TActions, ETProps>,
         private infractions?: Array<Function | string>
     ) {
         this.options = options;

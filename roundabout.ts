@@ -1,7 +1,7 @@
-import type { roundaboutOptions, RoundaboutReady } from './types/roundabout/types.js';
+import type { RoundaboutOptions, RoundaboutReady } from './types/roundabout/types.js';
 
 export async function roundabout<TProps = any, TActions = TProps, ETProps = TProps>(
-    options: roundaboutOptions<TProps, TActions, ETProps>,
+    options: RoundaboutOptions<TProps, TActions, ETProps>,
     infractions?: Array<Function | string>
 ): Promise<[vm: TProps & TActions & RoundaboutReady, propagator: EventTarget]> {
     const { RoundaboutManager } = await import('./core/RoundaboutManager.js');
