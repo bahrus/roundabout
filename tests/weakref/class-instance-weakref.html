@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Instance WeakRef Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting class instance WeakRef test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create a class
+            class MyComponent {
+                constructor() {
+                    this.enhancedElement = null;
+                    this.count = 0;
+                }
+            }
+            
+            // Create two instances
+            const instance1 = new MyComponent();
+            const instance2 = new MyComponent();
+            
+            // Create elements for each instance
+            const element1 = document.createElement('div');
+            element1.id = 'element-1';
+            const element2 = document.createElement('div');
+            element2.id = 'element-2';
+            
+            instance1.enhancedElement = element1;
+            instance2.enhancedElement = element2;
+
+            addLog('Created two class instances with different elements');
+
+            // Setup roundabout for first instance
+            const [vm1, propagator1] = await roundabout({
+                vm: instance1,
+                propagate: ['enhancedElement', 'count'],
+                weakRef: {
+                    properties: ['enhancedElement'],
+                    logIfCollected: 'warn'
+                }
+            });
+
+            addLog('Roundabout initialized for instance1');
+            
+            // Setup roundabout for second instance
+            const [vm2, propagator2] = await roundabout({
+                vm: instance2,
+                propagate: ['enhancedElement', 'count'],
+                weakRef: {
+                    properties: ['enhancedElement'],
+                    logIfCollected: 'warn'
+                }
+            });
+
+            addLog('Roundabout initialized for instance2');
+            
+            // Verify each instance has its own element
+            addLog(`Instance1 element: ${vm1.enhancedElement?.id}`);
+            addLog(`Instance2 element: ${vm2.enhancedElement?.id}`);
+            
+            if (vm1.enhancedElement?.id !== 'element-1') {
+                throw new Error(`Instance1 has wrong element: ${vm1.enhancedElement?.id}`);
+            }
+            
+            if (vm2.enhancedElement?.id !== 'element-2') {
+                throw new Error(`Instance2 has wrong element: ${vm2.enhancedElement?.id}`);
+            }
+            
+            addLog('✓ Each instance has its own element (storage scoping works!)');
+            
+            // Change instance1's element
+            const newElement1 = document.createElement('span');
+            newElement1.id = 'new-element-1';
+            vm1.enhancedElement = newElement1;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Verify instance2's element is unchanged
+            if (vm1.enhancedElement?.id !== 'new-element-1') {
+                throw new Error(`Instance1 element not updated: ${vm1.enhancedElement?.id}`);
+            }
+            
+            if (vm2.enhancedElement?.id !== 'element-2') {
+                throw new Error(`Instance2 element changed unexpectedly: ${vm2.enhancedElement?.id}`);
+            }
+            
+            addLog('✓ Changing instance1 does not affect instance2');
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = `✓ Test passed! WeakRef works for class instances with proper storage scoping`;
+            addLog('TEST PASSED');
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

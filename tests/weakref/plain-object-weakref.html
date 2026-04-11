@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plain Object WeakRef Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting plain object WeakRef test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create a DOM element to store
+            const element = document.createElement('div');
+            element.id = 'test-element';
+            element.textContent = 'Test Element';
+            
+            const myObject = {
+                trigger: element,
+                count: 0
+            };
+
+            addLog('Created myObject with DOM element');
+
+            // Setup roundabout with WeakRef for trigger property
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                propagate: ['trigger', 'count'],
+                weakRef: ['trigger'] // Array shorthand
+            });
+
+            addLog('Roundabout initialized with WeakRef for trigger');
+            addLog(`Initial trigger: ${vm.trigger?.id}`);
+            
+            // Verify we can access the element
+            if (vm.trigger && vm.trigger.id === 'test-element') {
+                addLog('✓ Can access trigger element');
+            } else {
+                throw new Error('Cannot access trigger element');
+            }
+            
+            // Change the trigger to a new element
+            const newElement = document.createElement('span');
+            newElement.id = 'new-element';
+            vm.trigger = newElement;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After change: trigger=${vm.trigger?.id}`);
+            
+            if (vm.trigger && vm.trigger.id === 'new-element') {
+                addLog('✓ Trigger updated successfully');
+            } else {
+                throw new Error('Trigger not updated');
+            }
+            
+            // Set trigger to null
+            vm.trigger = null;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After null: trigger=${vm.trigger}`);
+            
+            if (vm.trigger === null) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! WeakRef works for plain objects`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected trigger=null, got ${vm.trigger}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

@@ -79,7 +79,7 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         const propertiesToMonitor = inferPropertiesToMonitor(this.options);
         
         // Setup propagator and convert properties to getter/setters
-        this.propagator = await setupPropagator(this.vm, propertiesToMonitor);
+        this.propagator = await setupPropagator(this.vm, propertiesToMonitor, this.options.weakRef);
         
         // Subscribe to propagator events to trigger reactions
         for (const prop of propertiesToMonitor) {
