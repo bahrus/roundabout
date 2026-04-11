@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Handler Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting handler test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create a simple EventTarget to emit events
+            const timeEmitter = new EventTarget();
+            
+            const myObject = {
+                timeEmitter: timeEmitter,
+                tickCount: 0,
+                
+                incTicks(self, event) {
+                    addLog(`incTicks called! Current tickCount: ${self.tickCount}`);
+                    return {
+                        tickCount: self.tickCount + 1
+                    };
+                }
+            };
+
+            addLog('Created myObject with EventTarget');
+
+            // Setup roundabout with handler
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                handlers: {
+                    timeEmitter_to_incTicks_on: 'value-changed'
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial tickCount: ${vm.tickCount}`);
+            
+            // Emit event to trigger handler
+            addLog('Emitting value-changed event...');
+            timeEmitter.dispatchEvent(new CustomEvent('value-changed'));
+            
+            // Wait for handler to process
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After first event: tickCount=${vm.tickCount}`);
+            
+            // Emit another event
+            addLog('Emitting second value-changed event...');
+            timeEmitter.dispatchEvent(new CustomEvent('value-changed'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After second event: tickCount=${vm.tickCount}`);
+            
+            if (vm.tickCount === 2) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Tick count: ${vm.tickCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected tickCount=2, got ${vm.tickCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

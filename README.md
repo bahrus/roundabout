@@ -232,19 +232,110 @@ On the opposite extreme of compacts are actions, where we can fine tune exactly 
 We can specify lists of properties that are required to be truthy before invoking the action, or properties none of which should be truthy, etc.
 
 
-## Wiring up EventTarget properties to other methods based on an event.
+## Handlers - Wiring up EventTarget properties to methods
 
 One example of the kind of complexity that roundabouts can handle cleanly is creating subscriptions between one property that is an instance of an EventTarget (or a weak reference to said instance), and a method of the class we want to call when that eventTarget instance changes, again merging in what the action method returns into the view model.  Once again, the [signals](https://github.com/proposal-signals) proposal warns us about the complexity and danger of using pub/sub (such as EventTargets).  This library sees it as a challenge that using declarative syntax can rise to, because it will be sure to do what is needed to [avoid the real disaster](https://jakearchibald.com/2024/garbage-collection-and-closures/) that that proposal warns us about.
 
-How would this look?  Let's take a look at an example:
+### Pattern
 
 ```TypeScript
 handlers: {
     timeEmitter_to_incTicks_on: 'value-changed'
-},
+}
 ```
 
-This is saying:  When property with name timeEmitter is set to an event target (or weak ref), add an event handler with event 'value-changed' and when that event fires, invoke method 'incTicks'.  And do cleanup as necessary. 
+This declares: When property `timeEmitter` is set to an EventTarget (or WeakRef), add an event listener for `value-changed`, and when that event fires, invoke method `incTicks`. The method result is automatically merged back into the view model.
+
+### Key Features
+
+- **Automatic Listener Management**: Handlers automatically attach and detach event listeners as the EventTarget property changes
+- **WeakRef Support**: Supports both direct EventTarget references and `WeakRef<EventTarget>` for memory safety
+- **Result Merging**: Method results are automatically merged back into the view model using assignGingerly
+- **Proper Cleanup**: All event listeners are properly cleaned up when the roundabout is disconnected
+- **Dynamic Updates**: When the EventTarget property changes, the old listener is removed and a new one is attached
+
+### Example
+
+```TypeScript
+const model = {
+    timeEmitter: new EventTarget(),
+    tickCount: 0,
+    
+    incTicks(self, event) {
+        return {
+            tickCount: self.tickCount + 1
+        };
+    }
+};
+
+const [vm, propagator] = await roundabout({
+    vm: model,
+    handlers: {
+        timeEmitter_to_incTicks_on: 'value-changed'
+    }
+});
+
+// Emit event - incTicks will be called automatically
+model.timeEmitter.dispatchEvent(new CustomEvent('value-changed'));
+```
+
+### WeakRef Support
+
+For memory safety, handlers support WeakRef:
+
+```TypeScript
+const emitter = new EventTarget();
+
+const model = {
+    emitterRef: new WeakRef(emitter),
+    eventCount: 0,
+    
+    handleEvent(self, event) {
+        return { eventCount: self.eventCount + 1 };
+    }
+};
+
+const [vm, propagator] = await roundabout({
+    vm: model,
+    handlers: {
+        emitterRef_to_handleEvent_on: 'custom-event'
+    }
+});
+```
+
+### Dynamic EventTarget Changes
+
+When the EventTarget property changes, handlers automatically update:
+
+```TypeScript
+const emitter1 = new EventTarget();
+const emitter2 = new EventTarget();
+
+const model = {
+    currentEmitter: emitter1,
+    messageCount: 0,
+    
+    onMessage(self, event) {
+        return { messageCount: self.messageCount + 1 };
+    }
+};
+
+const [vm, propagator] = await roundabout({
+    vm: model,
+    handlers: {
+        currentEmitter_to_onMessage_on: 'message'
+    }
+});
+
+// Events from emitter1 trigger the handler
+emitter1.dispatchEvent(new CustomEvent('message'));
+
+// Change to emitter2 - old listener removed, new one attached
+vm.currentEmitter = emitter2;
+
+// Now only emitter2 events trigger the handler
+emitter2.dispatchEvent(new CustomEvent('message'));
+```
 
 This is demonstrated by the [first web component in the universe to use roundabout](https://github.com/bahrus/time-ticker/blob/baseline/time-ticker.ts).
 

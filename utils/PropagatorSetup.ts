@@ -254,6 +254,15 @@ export function inferPropertiesToMonitor(options: any): Set<string> {
         }
     }
     
+    // Infer from handlers
+    if (options.handlers) {
+        for (const key of Object.keys(options.handlers)) {
+            // eventTargetProp_to_methodName_on
+            const match = key.match(/^(.+)_to_(.+)_on$/);
+            if (match) props.add(match[1]); // Add the EventTarget property
+        }
+    }
+    
     // Infer from positractions
     if (options.positractions) {
         for (const positraction of options.positractions) {

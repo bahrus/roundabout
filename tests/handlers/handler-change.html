@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handler EventTarget Change Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting handler change test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create two EventTargets
+            const emitter1 = new EventTarget();
+            const emitter2 = new EventTarget();
+            
+            const myObject = {
+                currentEmitter: emitter1,
+                messageCount: 0,
+                
+                onMessage(self, event) {
+                    addLog(`onMessage called! Current messageCount: ${self.messageCount}`);
+                    return {
+                        messageCount: self.messageCount + 1
+                    };
+                }
+            };
+
+            addLog('Created myObject with two EventTargets');
+
+            // Setup roundabout with handler
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                handlers: {
+                    currentEmitter_to_onMessage_on: 'message'
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial messageCount: ${vm.messageCount}`);
+            
+            // Emit event from first emitter
+            addLog('Emitting message from emitter1...');
+            emitter1.dispatchEvent(new CustomEvent('message'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After emitter1 event: messageCount=${vm.messageCount}`);
+            
+            // Change to second emitter
+            addLog('Changing currentEmitter to emitter2...');
+            vm.currentEmitter = emitter2;
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Emit from first emitter (should not trigger)
+            addLog('Emitting message from emitter1 (should not trigger)...');
+            emitter1.dispatchEvent(new CustomEvent('message'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After emitter1 event (should be ignored): messageCount=${vm.messageCount}`);
+            
+            // Emit from second emitter (should trigger)
+            addLog('Emitting message from emitter2 (should trigger)...');
+            emitter2.dispatchEvent(new CustomEvent('message'));
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After emitter2 event: messageCount=${vm.messageCount}`);
+            
+            if (vm.messageCount === 2) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Message count: ${vm.messageCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected messageCount=2, got ${vm.messageCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

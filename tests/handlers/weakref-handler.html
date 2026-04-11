@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeakRef Handler Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting WeakRef handler test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            // Create an EventTarget
+            const emitter = new EventTarget();
+            
+            const myObject = {
+                emitterRef: new WeakRef(emitter),
+                eventCount: 0,
+                
+                handleEvent(self, event) {
+                    addLog(`handleEvent called! Current eventCount: ${self.eventCount}`);
+                    return {
+                        eventCount: self.eventCount + 1
+                    };
+                }
+            };
+
+            addLog('Created myObject with WeakRef<EventTarget>');
+
+            // Setup roundabout with handler
+            const [vm, propagator] = await roundabout({
+                vm: myObject,
+                handlers: {
+                    emitterRef_to_handleEvent_on: 'custom-event'
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial eventCount: ${vm.eventCount}`);
+            
+            // Emit event to trigger handler
+            addLog('Emitting custom-event...');
+            emitter.dispatchEvent(new CustomEvent('custom-event'));
+            
+            // Wait for handler to process
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            addLog(`After event: eventCount=${vm.eventCount}`);
+            
+            if (vm.eventCount === 1) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! Event count: ${vm.eventCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected eventCount=1, got ${vm.eventCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
