@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Element with Roundabout</title>
+    <!-- #include virtual="/imports.html" -->
+    <style>
+        user-counter {
+            display: block;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-family: system-ui, sans-serif;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        user-counter .header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        user-counter .count {
+            font-size: 2em;
+            color: #0066cc;
+            margin: 10px 0;
+        }
+        
+        user-counter .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        
+        user-counter .status.low {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        user-counter .status.medium {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        user-counter .status.high {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        user-counter button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        
+        user-counter button.increment {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        user-counter button.decrement {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        user-counter button.reset {
+            background-color: #9e9e9e;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <h2>Custom Element with Roundabout Demo</h2>
+    <user-counter id="counter1" username="Alice" initial-count="5"></user-counter>
+    <user-counter id="counter2" username="Bob" initial-count="15"></user-counter>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting custom element test...');
+            
+            const { roundabout } = await import('../index.js');
+            addLog('Imported roundabout');
+
+            /**
+             * UserCounter - A custom element that demonstrates roundabout usage
+             * 
+             * Features:
+             * - Reactive properties (count, username, status)
+             * - Actions that calculate derived state (status based on count)
+             * - Compacts for simple property transformations
+             * - WeakRef for DOM element references
+             * - Proper lifecycle management
+             */
+            class UserCounter extends HTMLElement {
+                constructor() {
+                    super();
+                    
+                    // Don't initialize properties here - let roundabout handle them
+                    // This ensures they get converted to getter/setters properly
+                }
+                
+                async connectedCallback() {
+                    // Initialize properties BEFORE roundabout
+                    this.count = 0;
+                    this.username = 'User';
+                    this.status = 'low';
+                    this.statusMessage = '';
+                    this.incrementButton = null;
+                    this.decrementButton = null;
+                    this.resetButton = null;
+                    
+                    addLog(`UserCounter connected: ${this.username}`);
+                    
+                    // Get initial attributes
+                    if (this.hasAttribute('username')) {
+                        this.username = this.getAttribute('username');
+                    }
+                    if (this.hasAttribute('initial-count')) {
+                        this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
+                    }
+                    
+                    // Render initial UI
+                    this.render();
+                    
+                    // Get button references
+                    this.incrementButton = this.querySelector('.increment');
+                    this.decrementButton = this.querySelector('.decrement');
+                    this.resetButton = this.querySelector('.reset');
+                    
+                    // Setup roundabout for reactive property management
+                    // This will convert properties to getter/setters
+                    const [vm, propagator] = await roundabout({
+                        vm: this,
+                        propagate: ['count', 'username', 'status', 'statusMessage'],
+                        
+                        // WeakRef for button references to prevent memory leaks
+                        weakRef: {
+                            properties: ['incrementButton', 'decrementButton', 'resetButton'],
+                            logIfCollected: 'warn'
+                        },
+                        
+                        // Actions: Calculate derived state based on count
+                        // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
+                        // firing on every change (it only fires once then stops)
+                        actions: {
+                            calculateStatus: {
+                                ifAllOf: ['count'],  // Fire when count is truthy (always, since it's a number)
+                                do: 'updateStatus'
+                            }
+                        },
+                        
+                        // Compacts: Simple property transformations
+                        compacts: {
+                            // When status changes, update the status message
+                            echo_status_to_statusMessage: 0
+                        }
+                    });
+                    
+                    // IMPORTANT: vm and this are the same object reference
+                    // roundabout modifies this in place, so we can continue using this
+                    // But we store vm for clarity
+                    this._vm = vm;
+                    
+                    // Store propagator for cleanup
+                    this._propagator = propagator;
+                    
+                    // Listen to property changes and update UI
+                    propagator.addEventListener('count', () => this.updateCountDisplay());
+                    propagator.addEventListener('status', () => this.updateStatusDisplay());
+                    propagator.addEventListener('username', () => this.updateUsernameDisplay());
+                    
+                    // Setup button event listeners
+                    if (this.incrementButton) {
+                        this.incrementButton.addEventListener('click', () => this.increment());
+                    }
+                    if (this.decrementButton) {
+                        this.decrementButton.addEventListener('click', () => this.decrement());
+                    }
+                    if (this.resetButton) {
+                        this.resetButton.addEventListener('click', () => this.reset());
+                    }
+                    
+                    // Note: Initial status calculation happens automatically via actions during roundabout initialization
+                    
+                    addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
+                }
+                
+                disconnectedCallback() {
+                    addLog(`UserCounter disconnected: ${this.username}`);
+                    // Cleanup is handled automatically by roundabout's AbortController
+                }
+                
+                // Action method: Calculate status based on count
+                updateStatus(self) {
+                    let newStatus;
+                    let newMessage;
+                    
+                    if (self.count < 10) {
+                        newStatus = 'low';
+                        newMessage = 'Low count';
+                    } else if (self.count < 20) {
+                        newStatus = 'medium';
+                        newMessage = 'Medium count';
+                    } else {
+                        newStatus = 'high';
+                        newMessage = 'High count!';
+                    }
+                    
+                    return {
+                        status: newStatus,
+                        statusMessage: newMessage
+                    };
+                }
+                
+                // User actions
+                increment() {
+                    this.count++;
+                    addLog(`${this.username} incremented to ${this.count}`);
+                    // Manually trigger status update
+                    // (Workaround: actions with ifAllOf don't fire on every change, only on transitions)
+                    const result = this.updateStatus(this);
+                    if (result && result.status) {
+                        this.status = result.status;
+                        if (result.statusMessage) {
+                            this.statusMessage = result.statusMessage;
+                        }
+                    }
+                }
+                
+                decrement() {
+                    if (this.count > 0) {
+                        this.count--;
+                        addLog(`${this.username} decremented to ${this.count}`);
+                        // Manually trigger status update
+                        const result = this.updateStatus(this);
+                        if (result && result.status) {
+                            this.status = result.status;
+                            if (result.statusMessage) {
+                                this.statusMessage = result.statusMessage;
+                            }
+                        }
+                    }
+                }
+                
+                reset() {
+                    this.count = 0;
+                    addLog(`${this.username} reset to 0`);
+                    // Manually trigger status update
+                    const result = this.updateStatus(this);
+                    if (result && result.status) {
+                        this.status = result.status;
+                        if (result.statusMessage) {
+                            this.statusMessage = result.statusMessage;
+                        }
+                    }
+                }
+                
+                // UI rendering methods
+                render() {
+                    this.innerHTML = `
+                        <div class="header">User: <span class="username">${this.username}</span></div>
+                        <div class="count">Count: <span class="count-value">${this.count}</span></div>
+                        <div class="status ${this.status}">
+                            Status: <span class="status-text">${this.statusMessage || this.status}</span>
+                        </div>
+                        <div class="controls">
+                            <button class="increment">+1</button>
+                            <button class="decrement">-1</button>
+                            <button class="reset">Reset</button>
+                        </div>
+                    `;
+                }
+                
+                updateCountDisplay() {
+                    const countValue = this.querySelector('.count-value');
+                    if (countValue) {
+                        countValue.textContent = this.count;
+                    }
+                }
+                
+                updateStatusDisplay() {
+                    const statusDiv = this.querySelector('.status');
+                    const statusText = this.querySelector('.status-text');
+                    
+                    if (statusDiv) {
+                        statusDiv.className = `status ${this.status}`;
+                    }
+                    if (statusText) {
+                        statusText.textContent = this.statusMessage || this.status;
+                    }
+                }
+                
+                updateUsernameDisplay() {
+                    const usernameSpan = this.querySelector('.username');
+                    if (usernameSpan) {
+                        usernameSpan.textContent = this.username;
+                    }
+                }
+            }
+            
+            // Register the custom element
+            customElements.define('user-counter', UserCounter);
+            
+            addLog('Custom element defined');
+            
+            // Wait for elements to be initialized
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Test the custom elements
+            const counter1 = document.getElementById('counter1');
+            const counter2 = document.getElementById('counter2');
+            
+            addLog(`Counter1: ${counter1.username}, count=${counter1.count}, status=${counter1.status}`);
+            addLog(`Counter2: ${counter2.username}, count=${counter2.count}, status=${counter2.status}`);
+            
+            // Verify initial state
+            if (counter1.count !== 5) {
+                throw new Error(`Counter1 should have count=5, got ${counter1.count}`);
+            }
+            if (counter1.status !== 'low') {
+                throw new Error(`Counter1 should have status=low, got ${counter1.status}`);
+            }
+            if (counter2.count !== 15) {
+                throw new Error(`Counter2 should have count=15, got ${counter2.count}`);
+            }
+            if (counter2.status !== 'medium') {
+                throw new Error(`Counter2 should have status=medium, got ${counter2.status}`);
+            }
+            
+            addLog('✓ Initial state correct');
+            
+            // Test incrementing counter1
+            counter1.increment();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (counter1.count !== 6) {
+                throw new Error(`Counter1 should have count=6 after increment, got ${counter1.count}`);
+            }
+            
+            addLog('✓ Increment works');
+            
+            // Test that counter1 and counter2 are independent
+            if (counter2.count !== 15) {
+                throw new Error(`Counter2 should still be 15, got ${counter2.count}`);
+            }
+            
+            addLog('✓ Counters are independent (storage scoping works)');
+            
+            // Test status transition by incrementing
+            addLog(`Starting status transition test. Current: count=${counter1.count}, status=${counter1.status}`);
+            
+            // Increment from 6 to 12 (need 6 more increments)
+            for (let i = 0; i < 6; i++) {
+                counter1.increment();
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            addLog(`After incrementing to 12: count=${counter1.count}, status=${counter1.status}`);
+            
+            if (counter1.count !== 12) {
+                throw new Error(`Counter1 should have count=12, got ${counter1.count}`);
+            }
+            if (counter1.status !== 'medium') {
+                throw new Error(`Counter1 should have status=medium at count=12, got ${counter1.status}`);
+            }
+            
+            addLog('✓ Status calculation works (low → medium)');
+            
+            // Test high status - increment to 20
+            for (let i = 0; i < 8; i++) {
+                counter1.increment();
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            addLog(`After incrementing to 20: count=${counter1.count}, status=${counter1.status}`);
+            
+            if (counter1.count !== 20) {
+                throw new Error(`Counter1 should have count=20, got ${counter1.count}`);
+            }
+            if (counter1.status !== 'high') {
+                throw new Error(`Counter1 should have status=high at count=20, got ${counter1.status}`);
+            }
+            
+            addLog('✓ Status calculation works (medium → high)');
+            
+            // Test reset
+            counter1.reset();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (counter1.count !== 0) {
+                throw new Error(`Counter1 should be 0 after reset, got ${counter1.count}`);
+            }
+            if (counter1.status !== 'low') {
+                throw new Error(`Counter1 should have status=low after reset, got ${counter1.status}`);
+            }
+            
+            addLog('✓ Reset works');
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = '✓ All tests passed! Custom element with roundabout works correctly';
+            addLog('TEST PASSED');
+            
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

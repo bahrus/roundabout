@@ -228,7 +228,12 @@ async function convertPropertyToGetterSetter(
             return;
         }
         
-        // Define getter/setter on prototype (first instance) or instance (subsequent)
+        // Delete the instance property if it exists (so prototype getter/setter will be used)
+        if (vm.hasOwnProperty(prop)) {
+            delete vm[prop];
+        }
+        
+        // Define getter/setter on prototype (first instance) or instance (if prototype already has it as data property)
         const target = protoDescriptor ? vm : proto;
         
         Object.defineProperty(target, prop, {
