@@ -179,7 +179,12 @@ async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPl
         const proto = Object.getPrototypeOf(vm);
         const protoDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
         if (protoDescriptor && (protoDescriptor.get || protoDescriptor.set)) {
-            // Already defined on prototype, skip
+            // Already defined on prototype by a previous instance.
+            // Delete the instance's own data property so the prototype
+            // getter/setter is no longer shadowed.
+            if (vm.hasOwnProperty(prop)) {
+                delete vm[prop];
+            }
             return;
         }
         // Delete the instance property if it exists (so prototype getter/setter will be used)

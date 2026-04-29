@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Debug ifKeyIn Issue</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting ifKeyIn debug test...');
+            
+            const { roundabout } = await import('../index.js');
+            
+            // Simple test object
+            const obj = {
+                count: 0,
+                status: 'low',
+                
+                updateStatus(self) {
+                    addLog(`[updateStatus] count=${self.count}, returning status=${self.count < 10 ? 'low' : 'high'}`);
+                    return {
+                        status: self.count < 10 ? 'low' : 'high'
+                    };
+                }
+            };
+            
+            addLog('Setting up roundabout with ifKeyIn...');
+            
+            const [vm, propagator] = await roundabout({
+                vm: obj,
+                propagate: ['count', 'status'],
+                actions: {
+                    calculateStatus: {
+                        ifKeyIn: ['count'],
+                        do: 'updateStatus',
+                        debug: true
+                    }
+                }
+            });
+            
+            addLog('Roundabout setup complete');
+            
+            // Listen to propagator events
+            propagator.addEventListener('count', (e) => {
+                addLog(`[Propagator] count changed event fired: ${e.newValue}`);
+            });
+            
+            propagator.addEventListener('status', (e) => {
+                addLog(`[Propagator] status changed event fired: ${e.newValue}`);
+            });
+            
+            addLog(`Initial: count=${vm.count}, status=${vm.status}`);
+            
+            // Test multiple changes
+            addLog('\n=== Change 1: count = 5 ===');
+            vm.count = 5;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change 1: count=${vm.count}, status=${vm.status}`);
+            
+            addLog('\n=== Change 2: count = 6 ===');
+            vm.count = 6;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change 2: count=${vm.count}, status=${vm.status}`);
+            
+            addLog('\n=== Change 3: count = 7 ===');
+            vm.count = 7;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change 3: count=${vm.count}, status=${vm.status}`);
+            
+            addLog('\n=== Change 4: count = 8 ===');
+            vm.count = 8;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change 4: count=${vm.count}, status=${vm.status}`);
+            
+            addLog('\n=== Change 5: count = 15 ===');
+            vm.count = 15;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After change 5: count=${vm.count}, status=${vm.status}`);
+            
+            // Check if status was updated
+            if (vm.status === 'high') {
+                target.setAttribute('mark', 'good');
+                target.textContent = '✓ ifKeyIn works correctly!';
+                addLog('\nTEST PASSED');
+            } else {
+                throw new Error(`Expected status='high' at count=15, got '${vm.status}'`);
+            }
+            
+        } catch (error) {
+            addLog(`\nERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
