@@ -113,10 +113,13 @@
                 },
                 updateStatusDisplay: {
                     ifKeyIn: ['status', 'statusMessage'],
-                    ifAllOf: ['template'],
+                    ifAllOf: ['clone'],
                 },
                 render: {
                     ifAllOf: ['renderCount'],
+                },
+                createClone: {
+                    ifAllOf: ['template'],
                 }
             },
             
@@ -239,6 +242,13 @@
                 hydrate(){
 
                 }
+
+                createClone(self){
+                    const {template} = self;
+                    return {
+                        clone: template.content.cloneNode(true),
+                    }
+                }
                 
                 disconnectedCallback() {
                     addLog(`UserCounter disconnected: ${this.username}`);
@@ -248,6 +258,7 @@
                 // Action method: Calculate status based on count
                 updateStatus(self) {
                     console.log('updateStatus');
+                    
                     let newStatus;
                     let newMessage;
                     
@@ -265,7 +276,7 @@
                     return {
                         status: newStatus,
                         statusMessage: newMessage,
-                        renderCount: 1,
+                        
                     };
                 }
                 
@@ -314,8 +325,11 @@
                 
                 // UI rendering methods
                 render(self) {
-                    const {template} = self;
-                    this.appendChild(template.content.cloneNode(true));
+                    const {clone} = self;
+                    this.appendChild(clone);
+                    return {
+                        clone: this,
+                    }
                 }
                 
                 updateCountDisplay() {
@@ -325,15 +339,19 @@
                     }
                 }
                 
-                updateStatusDisplay() {
-                    const statusDiv = this.querySelector('.status');
-                    const statusText = this.querySelector('.status-text');
+                updateStatusDisplay(self) {
+                    const {clone} = self;
+                    const statusDiv = clone.querySelector('.status');
+                    const statusText = clone.querySelector('.status-text');
                     
                     if (statusDiv) {
                         statusDiv.className = `status ${this.status}`;
                     }
                     if (statusText) {
                         statusText.textContent = this.statusMessage || this.status;
+                    }
+                    return {
+                        renderCount: 1,
                     }
                 }
                 
