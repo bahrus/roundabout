@@ -107,16 +107,34 @@
             // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
             // firing on every change (it only fires once then stops)
             actions: {
-                calculateStatus: {
-                    ifAllOf: ['count'],  // Fire when count is truthy (always, since it's a number)
-                    do: 'updateStatus'
+                // calculateStatus: {
+                //     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
+                //     do: 'updateStatus'
+                // },
+                updateStatusDisplay: {
+                    ifKeyIn: ['status', 'statusMessage']
                 }
             },
             
             // Compacts: Simple property transformations
             compacts: {
                 // When status changes, update the status message
+                when_count_changes_call_updateStatus: 0,
                 echo_status_to_statusMessage: 0
+            },
+            customData: {
+                innerHTML: String.raw `
+<div class="header">User: <span class="username"></span></div>
+<div class="count">Count: <span class="count-value"></span></div>
+<div class="status">
+    Status: <span class="status-text"></span>
+</div>
+<div class="controls">
+    <button class="increment">+1</button>
+    <button class="decrement">-1</button>
+    <button class="reset">Reset</button>
+</div>
+                ` 
             }
         };
 
@@ -151,6 +169,8 @@
                         vm: this,
                         ...raConfig,
                     });
+                    // Render initial UI
+                    this.render();
                     this.count = 0;
                     this.username = 'User';
                     this.status = 'low';
@@ -167,8 +187,7 @@
                         this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
                     }
                     
-                    // Render initial UI
-                    this.render();
+
                     
                     // Get button references
                     this.incrementButton = this.querySelector('.increment');
@@ -282,18 +301,7 @@
                 
                 // UI rendering methods
                 render() {
-                    this.innerHTML = `
-                        <div class="header">User: <span class="username">${this.username}</span></div>
-                        <div class="count">Count: <span class="count-value">${this.count}</span></div>
-                        <div class="status ${this.status}">
-                            Status: <span class="status-text">${this.statusMessage || this.status}</span>
-                        </div>
-                        <div class="controls">
-                            <button class="increment">+1</button>
-                            <button class="decrement">-1</button>
-                            <button class="reset">Reset</button>
-                        </div>
-                    `;
+                    this.innerHTML = raConfig.customData.innerHTML;
                 }
                 
                 updateCountDisplay() {
