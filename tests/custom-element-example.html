@@ -155,9 +155,7 @@
                     this.username = 'User';
                     this.status = 'low';
                     this.statusMessage = '';
-                    this.incrementButton = null;
-                    this.decrementButton = null;
-                    this.resetButton = null;
+
                     
                     addLog(`UserCounter connected: ${this.username}`);
                     
@@ -206,6 +204,10 @@
                     // Note: Initial status calculation happens automatically via actions during roundabout initialization
                     
                     addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
+                }
+
+                hydrate(){
+
                 }
                 
                 disconnectedCallback() {
