@@ -119,33 +119,6 @@
                 }
                 
                 async connectedCallback() {
-                    // Initialize properties BEFORE roundabout
-                    this.count = 0;
-                    this.username = 'User';
-                    this.status = 'low';
-                    this.statusMessage = '';
-                    this.incrementButton = null;
-                    this.decrementButton = null;
-                    this.resetButton = null;
-                    
-                    addLog(`UserCounter connected: ${this.username}`);
-                    
-                    // Get initial attributes
-                    if (this.hasAttribute('username')) {
-                        this.username = this.getAttribute('username');
-                    }
-                    if (this.hasAttribute('initial-count')) {
-                        this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
-                    }
-                    
-                    // Render initial UI
-                    this.render();
-                    
-                    // Get button references
-                    this.incrementButton = this.querySelector('.increment');
-                    this.decrementButton = this.querySelector('.decrement');
-                    this.resetButton = this.querySelector('.reset');
-                    
                     // Setup roundabout for reactive property management
                     // This will convert properties to getter/setters
                     const [vm, propagator] = await roundabout({
@@ -174,6 +147,33 @@
                             echo_status_to_statusMessage: 0
                         }
                     });
+                    this.count = 0;
+                    this.username = 'User';
+                    this.status = 'low';
+                    this.statusMessage = '';
+                    this.incrementButton = null;
+                    this.decrementButton = null;
+                    this.resetButton = null;
+                    
+                    addLog(`UserCounter connected: ${this.username}`);
+                    
+                    // Get initial attributes
+                    if (this.hasAttribute('username')) {
+                        this.username = this.getAttribute('username');
+                    }
+                    if (this.hasAttribute('initial-count')) {
+                        this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
+                    }
+                    
+                    // Render initial UI
+                    this.render();
+                    
+                    // Get button references
+                    this.incrementButton = this.querySelector('.increment');
+                    this.decrementButton = this.querySelector('.decrement');
+                    this.resetButton = this.querySelector('.reset');
+                    
+
                     
                     // IMPORTANT: vm and this are the same object reference
                     // roundabout modifies this in place, so we can continue using this
