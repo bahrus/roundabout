@@ -94,6 +94,32 @@
             console.log(msg);
         }
 
+        const raConfig = {
+            propagate: ['count', 'username', 'status', 'statusMessage'],
+                        
+            // WeakRef for button references to prevent memory leaks
+            weakRef: {
+                properties: ['incrementButton', 'decrementButton', 'resetButton'],
+                logIfCollected: 'warn'
+            },
+            
+            // Actions: Calculate derived state based on count
+            // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
+            // firing on every change (it only fires once then stops)
+            actions: {
+                calculateStatus: {
+                    ifAllOf: ['count'],  // Fire when count is truthy (always, since it's a number)
+                    do: 'updateStatus'
+                }
+            },
+            
+            // Compacts: Simple property transformations
+            compacts: {
+                // When status changes, update the status message
+                echo_status_to_statusMessage: 0
+            }
+        };
+
         try {
             addLog('Starting custom element test...');
             
@@ -123,29 +149,7 @@
                     // This will convert properties to getter/setters
                     const [vm, propagator] = await roundabout({
                         vm: this,
-                        propagate: ['count', 'username', 'status', 'statusMessage'],
-                        
-                        // WeakRef for button references to prevent memory leaks
-                        weakRef: {
-                            properties: ['incrementButton', 'decrementButton', 'resetButton'],
-                            logIfCollected: 'warn'
-                        },
-                        
-                        // Actions: Calculate derived state based on count
-                        // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
-                        // firing on every change (it only fires once then stops)
-                        actions: {
-                            calculateStatus: {
-                                ifAllOf: ['count'],  // Fire when count is truthy (always, since it's a number)
-                                do: 'updateStatus'
-                            }
-                        },
-                        
-                        // Compacts: Simple property transformations
-                        compacts: {
-                            // When status changes, update the status message
-                            echo_status_to_statusMessage: 0
-                        }
+                        ...raConfig,
                     });
                     this.count = 0;
                     this.username = 'User';
