@@ -88,6 +88,7 @@
         const target = document.getElementById('target');
         
         function addLog(msg) {
+            return;
             const p = document.createElement('p');
             p.textContent = msg;
             log.appendChild(p);
@@ -107,20 +108,21 @@
             // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
             // firing on every change (it only fires once then stops)
             actions: {
-                // calculateStatus: {
-                //     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
-                //     do: 'updateStatus'
-                // },
+                updateStatus: {
+                    ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
+                },
                 updateStatusDisplay: {
-                    ifKeyIn: ['status', 'statusMessage']
-                }
+                    ifKeyIn: ['status', 'statusMessage'],
+                    ifAllOf: ['template'],
+                },
             },
             
             // Compacts: Simple property transformations
             compacts: {
                 // When status changes, update the status message
-                when_count_changes_call_updateStatus: 0,
-                echo_status_to_statusMessage: 0
+                //when_count_changes_call_updateStatus: 0,
+                echo_status_to_statusMessage: 0,
+                when_renderCount_changes_call_render: 0,
             },
             customData: {
                 innerHTML: String.raw `
@@ -139,10 +141,14 @@
         };
 
         try {
-            addLog('Starting custom element test...');
+            //addLog('Starting custom element test...');
             
             const { roundabout } = await import('../index.js');
-            addLog('Imported roundabout');
+
+            const template = document.createElement('template');
+            template.innerHTML = raConfig.customData.innerHTML;
+
+            //addLog('Imported roundabout');
 
             /**
              * UserCounter - A custom element that demonstrates roundabout usage
@@ -170,14 +176,16 @@
                         ...raConfig,
                     });
                     // Render initial UI
-                    this.render();
+                    //this.render();
                     this.count = 0;
                     this.username = 'User';
                     this.status = 'low';
                     this.statusMessage = '';
+                    this.renderCount = 0;
+                    this.template = template;
 
                     
-                    addLog(`UserCounter connected: ${this.username}`);
+                    //addLog(`UserCounter connected: ${this.username}`);
                     
                     // Get initial attributes
                     if (this.hasAttribute('username')) {
@@ -222,7 +230,7 @@
                     
                     // Note: Initial status calculation happens automatically via actions during roundabout initialization
                     
-                    addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
+                    //addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
                 }
 
                 hydrate(){
@@ -236,6 +244,7 @@
                 
                 // Action method: Calculate status based on count
                 updateStatus(self) {
+                    console.log('updateStatus');
                     let newStatus;
                     let newMessage;
                     
@@ -252,7 +261,8 @@
                     
                     return {
                         status: newStatus,
-                        statusMessage: newMessage
+                        statusMessage: newMessage,
+                        renderCount: 1,
                     };
                 }
                 
@@ -300,8 +310,9 @@
                 }
                 
                 // UI rendering methods
-                render() {
-                    this.innerHTML = raConfig.customData.innerHTML;
+                render(self) {
+                    const {template} = self;
+                    this.appendChild(template.content.cloneNode(true));
                 }
                 
                 updateCountDisplay() {
