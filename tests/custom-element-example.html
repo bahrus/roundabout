@@ -118,6 +118,10 @@
                     ifKeyIn: ['status', 'statusMessage'],
                     ifAllOf: ['clone'],
                 },
+                updateUsernameDisplay: {
+                    ifKeyIn: ['username'],
+                    ifAllOf: ['clone'],
+                },
                 updateCountDisplay: {
                     ifKeyIn: ['count'],
                     ifAllOf: ['clone']
@@ -353,6 +357,14 @@
 
                 }
 
+                updateUsernameDisplay(self) {
+                    const {username, clone} = self;
+                    const usernameSpan = clone.querySelector('.username');
+                    if (usernameSpan) {
+                        usernameSpan.textContent = this.username;
+                    }
+                }
+
                 updateCountDisplay(self) {
                     const {clone, count} = self;
                     
@@ -366,12 +378,7 @@
                     }
                 }
                 
-                updateUsernameDisplay() {
-                    const usernameSpan = this.querySelector('.username');
-                    if (usernameSpan) {
-                        usernameSpan.textContent = this.username;
-                    }
-                }
+
             }
             
             // Register the custom element
