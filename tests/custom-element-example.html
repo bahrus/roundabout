@@ -266,15 +266,16 @@
                 
                 // Action method: Calculate status based on count
                 updateStatus(self) {
-                    console.log('updateStatus');
+                    const {count} = self;
+                    console.log('updateStatus', {count});
                     
                     let newStatus;
                     let newMessage;
                     
-                    if (self.count < 10) {
+                    if (count < 10) {
                         newStatus = 'low';
                         newMessage = 'Low count';
-                    } else if (self.count < 20) {
+                    } else if (count < 20) {
                         newStatus = 'medium';
                         newMessage = 'Medium count';
                     } else {
@@ -344,15 +345,16 @@
 
                 
                 updateStatusDisplay(self) {
-                    const {clone} = self;
+                    const {clone, status, statusMessage} = self;
+                    console.log({status, statusMessage});
                     const statusDiv = clone.querySelector('.status');
                     const statusText = clone.querySelector('.status-text');
                     
                     if (statusDiv) {
-                        statusDiv.className = `status ${this.status}`;
+                        statusDiv.className = `status ${status}`;
                     }
                     if (statusText) {
-                        statusText.textContent = this.statusMessage || this.status;
+                        statusText.textContent = statusMessage || status;
                     }
 
                 }
@@ -367,10 +369,8 @@
 
                 updateCountDisplay(self) {
                     const {clone, count} = self;
-                    
                     const countValue = clone.querySelector('.count-value');
                     if (countValue) {
-                        console.log({clone, count});
                         countValue.textContent = count;
                     }
                     return {
