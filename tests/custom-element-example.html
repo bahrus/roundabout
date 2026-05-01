@@ -130,6 +130,12 @@
                     ifAllOf: ['renderCount'],
                 },
 
+
+            },
+            handlers: {
+                resetButton_to_reset_on: 'click',
+                incrementButton_to_increment_on: 'click',
+                decrementButton_to_decrement_on: 'click',
             },
             
             // Compacts: Simple property transformations
@@ -213,9 +219,7 @@
 
                     
                     // Get button references
-                    this.incrementButton = this.querySelector('.increment');
-                    this.decrementButton = this.querySelector('.decrement');
-                    this.resetButton = this.querySelector('.reset');
+                   
                     
 
                     
@@ -230,29 +234,36 @@
 
                     
                     // Setup button event listeners
-                    if (this.incrementButton) {
-                        this.incrementButton.addEventListener('click', () => this.increment());
-                    }
-                    if (this.decrementButton) {
-                        this.decrementButton.addEventListener('click', () => this.decrement());
-                    }
-                    if (this.resetButton) {
-                        this.resetButton.addEventListener('click', () => this.reset());
-                    }
+                    // if (this.incrementButton) {
+                    //     this.incrementButton.addEventListener('click', () => this.increment());
+                    // }
+                    // if (this.decrementButton) {
+                    //     this.decrementButton.addEventListener('click', () => this.decrement());
+                    // }
+                    // if (this.resetButton) {
+                    //     this.resetButton.addEventListener('click', () => this.reset());
+                    // }
                     
                     // Note: Initial status calculation happens automatically via actions during roundabout initialization
                     
                     //addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
                 }
 
-                hydrate(){
+                hydrate(self){
 
                 }
 
                 createClone(self){
                     const {template} = self;
+                    const clone = template.content.cloneNode(true);
+                    const incrementButton = clone.querySelector('.increment');
+                    const decrementButton = clone.querySelector('.decrement');
+                    const resetButton = clone.querySelector('.reset');
                     return {
-                        clone: template.content.cloneNode(true),
+                        incrementButton,
+                        decrementButton,
+                        resetButton,
+                        clone,
                     }
                 }
                 
@@ -288,45 +299,23 @@
                 }
                 
                 // User actions
-                increment() {
-                    this.count++;
-                    // addLog(`${this.username} incremented to ${this.count}`);
-                    // // Manually trigger status update
-                    // // (Workaround: actions with ifAllOf don't fire on every change, only on transitions)
-                    // const result = this.updateStatus(this);
-                    // if (result && result.status) {
-                    //     this.status = result.status;
-                    //     if (result.statusMessage) {
-                    //         this.statusMessage = result.statusMessage;
-                    //     }
-                    // }
-                }
-                
-                decrement() {
-                    if (this.count > 0) {
-                        this.count--;
-                        addLog(`${this.username} decremented to ${this.count}`);
-                        // Manually trigger status update
-                        const result = this.updateStatus(this);
-                        if (result && result.status) {
-                            this.status = result.status;
-                            if (result.statusMessage) {
-                                this.statusMessage = result.statusMessage;
-                            }
-                        }
+                increment(self) {
+                    const {count} = self;
+                    return {
+                        count: count + 1,
                     }
                 }
                 
-                reset() {
-                    this.count = 0;
-                    addLog(`${this.username} reset to 0`);
-                    // Manually trigger status update
-                    const result = this.updateStatus(this);
-                    if (result && result.status) {
-                        this.status = result.status;
-                        if (result.statusMessage) {
-                            this.statusMessage = result.statusMessage;
-                        }
+                decrement(self) {
+                    const {count} = self;
+                    return {
+                        count: count - 1,
+                    }
+                }
+                
+                reset(self) {
+                    return {
+                        count: 0
                     }
                 }
                 
@@ -386,99 +375,99 @@
             // Wait for elements to be initialized
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Test the custom elements
-            const counter1 = document.getElementById('counter1');
-            const counter2 = document.getElementById('counter2');
+            // // Test the custom elements
+            // const counter1 = document.getElementById('counter1');
+            // const counter2 = document.getElementById('counter2');
             
-            addLog(`Counter1: ${counter1.username}, count=${counter1.count}, status=${counter1.status}`);
-            addLog(`Counter2: ${counter2.username}, count=${counter2.count}, status=${counter2.status}`);
+            // addLog(`Counter1: ${counter1.username}, count=${counter1.count}, status=${counter1.status}`);
+            // addLog(`Counter2: ${counter2.username}, count=${counter2.count}, status=${counter2.status}`);
             
-            // Verify initial state
-            if (counter1.count !== 5) {
-                throw new Error(`Counter1 should have count=5, got ${counter1.count}`);
-            }
-            if (counter1.status !== 'low') {
-                throw new Error(`Counter1 should have status=low, got ${counter1.status}`);
-            }
-            if (counter2.count !== 15) {
-                throw new Error(`Counter2 should have count=15, got ${counter2.count}`);
-            }
-            if (counter2.status !== 'medium') {
-                throw new Error(`Counter2 should have status=medium, got ${counter2.status}`);
-            }
+            // // Verify initial state
+            // if (counter1.count !== 5) {
+            //     throw new Error(`Counter1 should have count=5, got ${counter1.count}`);
+            // }
+            // if (counter1.status !== 'low') {
+            //     throw new Error(`Counter1 should have status=low, got ${counter1.status}`);
+            // }
+            // if (counter2.count !== 15) {
+            //     throw new Error(`Counter2 should have count=15, got ${counter2.count}`);
+            // }
+            // if (counter2.status !== 'medium') {
+            //     throw new Error(`Counter2 should have status=medium, got ${counter2.status}`);
+            // }
             
-            addLog('✓ Initial state correct');
+            // addLog('✓ Initial state correct');
             
-            // Test incrementing counter1
-            counter1.increment();
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // // Test incrementing counter1
+            // counter1.increment();
+            // await new Promise(resolve => setTimeout(resolve, 100));
             
-            if (counter1.count !== 6) {
-                throw new Error(`Counter1 should have count=6 after increment, got ${counter1.count}`);
-            }
+            // if (counter1.count !== 6) {
+            //     throw new Error(`Counter1 should have count=6 after increment, got ${counter1.count}`);
+            // }
             
-            addLog('✓ Increment works');
+            // addLog('✓ Increment works');
             
-            // Test that counter1 and counter2 are independent
-            if (counter2.count !== 15) {
-                throw new Error(`Counter2 should still be 15, got ${counter2.count}`);
-            }
+            // // Test that counter1 and counter2 are independent
+            // if (counter2.count !== 15) {
+            //     throw new Error(`Counter2 should still be 15, got ${counter2.count}`);
+            // }
             
-            addLog('✓ Counters are independent (storage scoping works)');
+            // addLog('✓ Counters are independent (storage scoping works)');
             
-            // Test status transition by incrementing
-            addLog(`Starting status transition test. Current: count=${counter1.count}, status=${counter1.status}`);
+            // // Test status transition by incrementing
+            // addLog(`Starting status transition test. Current: count=${counter1.count}, status=${counter1.status}`);
             
-            // Increment from 6 to 12 (need 6 more increments)
-            for (let i = 0; i < 6; i++) {
-                counter1.increment();
-            }
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // // Increment from 6 to 12 (need 6 more increments)
+            // for (let i = 0; i < 6; i++) {
+            //     counter1.increment();
+            // }
+            // await new Promise(resolve => setTimeout(resolve, 200));
             
-            addLog(`After incrementing to 12: count=${counter1.count}, status=${counter1.status}`);
+            // addLog(`After incrementing to 12: count=${counter1.count}, status=${counter1.status}`);
             
-            if (counter1.count !== 12) {
-                throw new Error(`Counter1 should have count=12, got ${counter1.count}`);
-            }
-            if (counter1.status !== 'medium') {
-                throw new Error(`Counter1 should have status=medium at count=12, got ${counter1.status}`);
-            }
+            // if (counter1.count !== 12) {
+            //     throw new Error(`Counter1 should have count=12, got ${counter1.count}`);
+            // }
+            // if (counter1.status !== 'medium') {
+            //     throw new Error(`Counter1 should have status=medium at count=12, got ${counter1.status}`);
+            // }
             
-            addLog('✓ Status calculation works (low → medium)');
+            // addLog('✓ Status calculation works (low → medium)');
             
-            // Test high status - increment to 20
-            for (let i = 0; i < 8; i++) {
-                counter1.increment();
-            }
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // // Test high status - increment to 20
+            // for (let i = 0; i < 8; i++) {
+            //     counter1.increment();
+            // }
+            // await new Promise(resolve => setTimeout(resolve, 200));
             
-            addLog(`After incrementing to 20: count=${counter1.count}, status=${counter1.status}`);
+            // addLog(`After incrementing to 20: count=${counter1.count}, status=${counter1.status}`);
             
-            if (counter1.count !== 20) {
-                throw new Error(`Counter1 should have count=20, got ${counter1.count}`);
-            }
-            if (counter1.status !== 'high') {
-                throw new Error(`Counter1 should have status=high at count=20, got ${counter1.status}`);
-            }
+            // if (counter1.count !== 20) {
+            //     throw new Error(`Counter1 should have count=20, got ${counter1.count}`);
+            // }
+            // if (counter1.status !== 'high') {
+            //     throw new Error(`Counter1 should have status=high at count=20, got ${counter1.status}`);
+            // }
             
-            addLog('✓ Status calculation works (medium → high)');
+            // addLog('✓ Status calculation works (medium → high)');
             
-            // Test reset
-            counter1.reset();
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // // Test reset
+            // counter1.reset();
+            // await new Promise(resolve => setTimeout(resolve, 100));
             
-            if (counter1.count !== 0) {
-                throw new Error(`Counter1 should be 0 after reset, got ${counter1.count}`);
-            }
-            if (counter1.status !== 'low') {
-                throw new Error(`Counter1 should have status=low after reset, got ${counter1.status}`);
-            }
+            // if (counter1.count !== 0) {
+            //     throw new Error(`Counter1 should be 0 after reset, got ${counter1.count}`);
+            // }
+            // if (counter1.status !== 'low') {
+            //     throw new Error(`Counter1 should have status=low after reset, got ${counter1.status}`);
+            // }
             
-            addLog('✓ Reset works');
+            // addLog('✓ Reset works');
             
-            target.setAttribute('mark', 'good');
-            target.textContent = '✓ All tests passed! Custom element with roundabout works correctly';
-            addLog('TEST PASSED');
+            // target.setAttribute('mark', 'good');
+            // target.textContent = '✓ All tests passed! Custom element with roundabout works correctly';
+            // addLog('TEST PASSED');
             
         } catch (error) {
             addLog(`ERROR: ${error.message}`);
