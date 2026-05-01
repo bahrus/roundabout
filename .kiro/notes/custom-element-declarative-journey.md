@@ -34,6 +34,47 @@ if (protoDescriptor && (protoDescriptor.get || protoDescriptor.set)) {
 
 **Verification:** All 30 existing Playwright tests pass after the fix.
 
+### Bug #2: handlePropertyChange drops changes for same-key rapid updates (2026-05-01)
+
+**Symptom:** When using `ifKeyIn: ['count']`, the `updateStatus` action only fires once (for the
+initial `count = 0` assignment). Subsequent synchronous assignments to the same property (e.g.,
+`this.count = 5` right after `this.count = 0`) are silently dropped, and user clicks that should
+trigger the action via the reaction system also lose their changes if any async processing is
+still in flight.
+
+**Root Cause:** `RoundaboutManager.handlePropertyChange` used a `processingQueue` Map to deduplicate.
+When a second change arrived for the same key while the first was still processing (async), the
+code simply awaited the existing promise and returned — discarding the new value entirely. For
+`ifKeyIn` actions (which should fire on *every* value change), this meant only the first change
+in a synchronous batch was ever processed.
+
+**Fix:** Instead of dropping the change, store the latest pending value. After the current
+processing completes, check for a pending value and recursively process it:
+```js
+pendingValues = new Map();
+async handlePropertyChange(key, value) {
+    const existing = this.processingQueue.get(key);
+    if (existing) {
+        this.pendingValues.set(key, value);  // keep latest, don't drop
+        await existing;
+        return;
+    }
+    // ... normal processing ...
+    // After processing, pick up any value that arrived while we were busy
+    if (this.pendingValues.has(key)) {
+        const next = this.pendingValues.get(key);
+        this.pendingValues.delete(key);
+        await this.handlePropertyChange(key, next);
+    }
+}
+```
+
+Note: if multiple intermediate values arrive, only the *latest* is processed (coalescing).
+This is correct for reactive state — intermediate values are stale by the time processing
+resumes. The important thing is that the final value is never lost.
+
+**Verification:** All 30 existing Playwright tests pass after the fix.
+
 ---
 
 ## Current State of Declarative Configuration (lines 152-175)

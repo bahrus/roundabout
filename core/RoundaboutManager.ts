@@ -92,10 +92,14 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         }
     }
 
+    private pendingValues: Map<string, any> = new Map();
+
     private async handlePropertyChange(key: string, value: any): Promise<void> {
-        // Avoid duplicate processing
+        // If already processing this key, store the latest value so it gets
+        // picked up after the current cycle completes (don't drop it).
         const existing = this.processingQueue.get(key);
         if (existing) {
+            this.pendingValues.set(key, value);
             await existing;
             return;
         }
@@ -107,6 +111,13 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
             await promise;
         } finally {
             this.processingQueue.delete(key);
+        }
+
+        // If another value arrived while we were processing, handle it now.
+        if (this.pendingValues.has(key)) {
+            const next = this.pendingValues.get(key);
+            this.pendingValues.delete(key);
+            await this.handlePropertyChange(key, next);
         }
     }
 

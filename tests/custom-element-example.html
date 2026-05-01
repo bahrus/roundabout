@@ -227,10 +227,7 @@
                     // Store propagator for cleanup
                     this._propagator = propagator;
                     
-                    // Listen to property changes and update UI
-                    propagator.addEventListener('count', () => this.updateCountDisplay());
-                    propagator.addEventListener('status', () => this.updateStatusDisplay());
-                    propagator.addEventListener('username', () => this.updateUsernameDisplay());
+
                     
                     // Setup button event listeners
                     if (this.incrementButton) {
@@ -293,16 +290,16 @@
                 // User actions
                 increment() {
                     this.count++;
-                    addLog(`${this.username} incremented to ${this.count}`);
-                    // Manually trigger status update
-                    // (Workaround: actions with ifAllOf don't fire on every change, only on transitions)
-                    const result = this.updateStatus(this);
-                    if (result && result.status) {
-                        this.status = result.status;
-                        if (result.statusMessage) {
-                            this.statusMessage = result.statusMessage;
-                        }
-                    }
+                    // addLog(`${this.username} incremented to ${this.count}`);
+                    // // Manually trigger status update
+                    // // (Workaround: actions with ifAllOf don't fire on every change, only on transitions)
+                    // const result = this.updateStatus(this);
+                    // if (result && result.status) {
+                    //     this.status = result.status;
+                    //     if (result.statusMessage) {
+                    //         this.statusMessage = result.statusMessage;
+                    //     }
+                    // }
                 }
                 
                 decrement() {
