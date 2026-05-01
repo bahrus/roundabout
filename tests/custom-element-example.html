@@ -108,6 +108,9 @@
             // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
             // firing on every change (it only fires once then stops)
             actions: {
+                createClone: {
+                    ifAllOf: ['template'],
+                },
                 updateStatus: {
                     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
                 },
@@ -115,12 +118,14 @@
                     ifKeyIn: ['status', 'statusMessage'],
                     ifAllOf: ['clone'],
                 },
+                updateCountDisplay: {
+                    ifKeyIn: ['count'],
+                    ifAllOf: ['clone']
+                },
                 render: {
                     ifAllOf: ['renderCount'],
                 },
-                createClone: {
-                    ifAllOf: ['template'],
-                }
+
             },
             
             // Compacts: Simple property transformations
@@ -332,12 +337,7 @@
                     }
                 }
                 
-                updateCountDisplay() {
-                    const countValue = this.querySelector('.count-value');
-                    if (countValue) {
-                        countValue.textContent = this.count;
-                    }
-                }
+
                 
                 updateStatusDisplay(self) {
                     const {clone} = self;
@@ -349,6 +349,17 @@
                     }
                     if (statusText) {
                         statusText.textContent = this.statusMessage || this.status;
+                    }
+
+                }
+
+                updateCountDisplay(self) {
+                    const {clone, count} = self;
+                    
+                    const countValue = clone.querySelector('.count-value');
+                    if (countValue) {
+                        console.log({clone, count});
+                        countValue.textContent = count;
                     }
                     return {
                         renderCount: 1,
