@@ -1,4 +1,4 @@
-import type { Actions, LogicOp } from '../types/roundabout/types.js';
+import type { Actions, LogicOp, LogicOpWithDo } from '../types/roundabout/types.js';
 
 interface ActionContext {
     rule: string;
@@ -32,7 +32,7 @@ export async function processActions<TProps = any, TActions = TProps>(
     
     // Register reactions for each action
     for (const [actionKey, actionConfig] of Object.entries(actions)) {
-        const state = await setupAction(vm, actionKey, actionConfig as LogicOp<TProps, TActions>, actionStates);
+        const state = await setupAction(vm, actionKey, actionConfig as LogicOpWithDo<TProps, TActions>, actionStates);
         actionStates.set(actionKey, state);
     }
     
@@ -50,7 +50,7 @@ export async function processActions<TProps = any, TActions = TProps>(
 }
 
 interface ActionState {
-    config: LogicOp<any, any>;
+    config: LogicOpWithDo<any, any>;
     monitoredProps: Set<string>;
     lastConditionsMet: boolean;
     pendingTimeout?: any;
@@ -69,7 +69,7 @@ function checkForCompactConflicts(vm: any, actions: Actions): void {
     
     // Check for conflicts
     for (const actionKey of Object.keys(actions)) {
-        const actionConfig = actions[actionKey] as LogicOp;
+        const actionConfig = actions[actionKey] as LogicOpWithDo;
         const methodName = typeof actionConfig.do === 'string' ? actionConfig.do : actionKey;
         
         if (compactInvokedMethods.has(methodName)) {
@@ -84,7 +84,7 @@ function checkForCompactConflicts(vm: any, actions: Actions): void {
 async function setupAction<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOp<TProps, TActions>,
+    config: LogicOpWithDo<TProps, TActions>,
     actionStates: Map<string, ActionState>
 ): Promise<ActionState> {
     const vmAny = vm as any;
@@ -265,7 +265,7 @@ async function evaluateAndExecuteActionWithInternalRouting<TProps, TActions>(
 async function executeActionWithInternalRouting<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOp<TProps, TActions>,
+    config: LogicOpWithDo<TProps, TActions>,
     changedProperty: string
 ): Promise<void> {
     const vmAny = vm as any;
@@ -328,7 +328,7 @@ async function executeActionWithInternalRouting<TProps, TActions>(
 
 function evaluateConditions<TProps, TActions>(
     vm: TProps & TActions,
-    config: LogicOp<TProps, TActions>
+    config: LogicOpWithDo<TProps, TActions>
 ): boolean {
     const vmAny = vm as any;
     
@@ -390,7 +390,7 @@ function evaluateConditions<TProps, TActions>(
 async function executeAction<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOp<TProps, TActions>,
+    config: LogicOpWithDo<TProps, TActions>,
     changedProperty: string
 ): Promise<void> {
     const vmAny = vm as any;
@@ -596,7 +596,7 @@ async function processActionResult<TProps, TActions>(
 async function executeActionForInternalRouting<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOp<TProps, TActions>,
+    config: LogicOpWithDo<TProps, TActions>,
     changedProperty: string
 ): Promise<any> {
     const vmAny = vm as any;

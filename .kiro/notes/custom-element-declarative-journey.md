@@ -119,3 +119,27 @@ Imperative code that remains:
 - The compact `echo_status_to_statusMessage` is truly declarative — no code needed.
 - WeakRef for button references is declarative configuration.
 - The bulk of imperative code is DOM interaction (rendering, querying, event listeners).
+
+## Documentation Improvements Made
+
+### README.md updates (2026-05-02)
+- Added "Design Philosophy: Declarative First" section emphasizing JSON-serializable config
+- Added "Web Component Example" showing the declarative approach with handlers, assignGingerly, etc.
+- Added assignGingerly feature introduction (optional chaining, withMethods, aka) as it pertains to roundabout
+- Updated Actions Reference: `do` property marked as "discouraged for actions", explained it's for positractions
+- Clarified that action key = method name convention
+
+### Type changes (2026-05-02)
+- Split `LogicOp` into `LogicOp` (without `do`) and `LogicOpWithDo` (with `do`)
+- `Actions` type uses `LogicOp` — TypeScript users won't see `do` as an option for actions
+- `Positraction` type uses `LogicOpWithDo` — `do` is available and required for positractions
+- Runtime still supports `do` in actions for backward compatibility
+
+### Concerns addressed from Concerns.md
+1. **Imperative code = failure to roundabout**: Added prominent design philosophy section
+2. **`do` property misuse in actions**: Separated types, updated docs to discourage
+3. **`echo_status_to_statusMessage` confusion**: This was a misunderstanding — removed from the
+   recommended pattern. Status and statusMessage are computed differently by `updateStatus`.
+4. **assignGingerly features not documented**: Added introduction to key features (withMethods, aka,
+   optional chaining syntax) directly in README
+5. **Web component example quality**: Added complete example showing declarative approach

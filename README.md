@@ -100,6 +100,223 @@ propagator is an EventTarget, that publishes events when the propagate propertie
 roundabout could support deep memoization (parity), which seems like a good idea
 -->
 
+## Design Philosophy: Declarative First
+
+The core goal of roundabout is to **maximize declarative, JSON-serializable configuration** and **minimize imperative code**. If you find yourself writing lots of imperative glue code around roundabout, that's a signal that roundabout isn't being used to its full potential.
+
+### What "declarative" means here
+
+The roundabout configuration object should describe *what* happens, not *how*. Action methods should be pure functions: receive the view model state, return the new state to merge. Roundabout handles the wiring — when to call what, how to merge results, how to propagate changes.
+
+### The action key IS the method name
+
+For actions, the key in the configuration object is the name of the method to call. There is no need for a separate `do` property:
+
+```javascript
+// ✅ Correct: action key matches the method name
+actions: {
+    updateStatus: {
+        ifKeyIn: ['count']
+    }
+}
+// roundabout calls vm.updateStatus(self) when count changes
+
+// ❌ Avoid: using `do` to alias the method name adds confusion
+actions: {
+    calculateStatus: {
+        ifKeyIn: ['count'],
+        do: 'updateStatus'  // unnecessary indirection
+    }
+}
+```
+
+The `do` property exists primarily for **positractions**, where you're calling generic, view-model-neutral functions (like `Math.max`) that don't live on the view model as methods with matching names.
+
+### Action methods are pure functions
+
+Action methods receive `self` (the view model) and return a partial object to merge back:
+
+```javascript
+updateStatus(self) {
+    const { count } = self;
+    if (count < 10) return { status: 'low', statusMessage: 'Low count' };
+    if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
+    return { status: 'high', statusMessage: 'High count!' };
+}
+```
+
+No `this.status = ...` assignments. No manual event dispatching. Just return what changed and roundabout handles the rest.
+
+### Handlers replace imperative event wiring
+
+Instead of manually adding event listeners to buttons, use handlers:
+
+```javascript
+// ❌ Imperative: manual event listener setup
+this.querySelector('.increment').addEventListener('click', () => this.increment());
+
+// ✅ Declarative: roundabout wires it up
+handlers: {
+    incrementButton_to_increment_on: 'click',
+    decrementButton_to_decrement_on: 'click',
+    resetButton_to_reset_on: 'click',
+}
+```
+
+The handler methods follow the same pattern — receive `self`, return partial state:
+
+```javascript
+increment(self) {
+    return { count: self.count + 1 };
+}
+```
+
+### assignGingerly enables declarative DOM updates
+
+Roundabout uses [assignGingerly](https://github.com/bahrus/assign-gingerly) to merge action results back into the view model. assignGingerly supports optional-chaining-in-reverse syntax and method invocation, which means DOM updates can be expressed declaratively in action return values:
+
+```javascript
+// With assignGingerlyOptions: { withMethods: ['querySelector'], aka: { q: 'querySelector' } }
+
+updateCountDisplay(self) {
+    return {
+        '?.clone?.q?..count-value?.textContent': self.count,
+    };
+}
+
+updateStatusDisplay(self) {
+    return {
+        '?.clone?.q?..status?.className': `status ${self.status}`,
+        '?.clone?.q?..status-text?.textContent': self.statusMessage || self.status,
+    };
+}
+```
+
+Key assignGingerly features used with roundabout:
+- **Optional chaining in reverse** (`?.prop?.subProp`): safely navigates nested properties, creating intermediates if needed
+- **Method invocation** (`withMethods`): allows calling methods like `querySelector` or `appendChild` through the declarative syntax
+- **Aliases** (`aka`): shortens verbose method names (e.g., `q` for `querySelector`)
+- **Class selector shorthand** (`q?..className`): the `?..` syntax passes the next segment as an argument to the preceding method (e.g., `querySelector('.className')`)
+
+Pass these options via `assignGingerlyOptions` in the roundabout config:
+
+```javascript
+const [vm, propagator] = await roundabout({
+    vm: this,
+    assignGingerlyOptions: {
+        withMethods: ['querySelector', 'appendChild'],
+        aka: { q: 'querySelector' }
+    },
+    // ... actions, compacts, etc.
+});
+```
+
+## Web Component Example
+
+Here is a complete example showing how roundabout enables a mostly-declarative web component. The configuration is JSON-serializable and can be shared or parsed independently of the class:
+
+```javascript
+// JSON-serializable configuration — the "what"
+const raConfig = {
+    weakRef: {
+        properties: ['incrementButton', 'decrementButton', 'resetButton'],
+        logIfCollected: 'warn'
+    },
+    actions: {
+        createClone: { ifAllOf: ['template'] },
+        updateStatus: { ifKeyIn: ['count'] },
+        updateStatusDisplay: { ifKeyIn: ['status', 'statusMessage'], ifAllOf: ['clone'] },
+        updateUsernameDisplay: { ifKeyIn: ['username'], ifAllOf: ['clone'] },
+        updateCountDisplay: { ifKeyIn: ['count'], ifAllOf: ['clone'] },
+        render: { ifAllOf: ['renderCount'] },
+    },
+    handlers: {
+        incrementButton_to_increment_on: 'click',
+        decrementButton_to_decrement_on: 'click',
+        resetButton_to_reset_on: 'click',
+    },
+    assignGingerlyOptions: {
+        withMethods: ['querySelector', 'appendChild'],
+        aka: { q: 'querySelector' }
+    },
+    customData: {
+        innerHTML: `
+            <div class="header">User: <span class="username"></span></div>
+            <div class="count">Count: <span class="count-value"></span></div>
+            <div class="status">Status: <span class="status-text"></span></div>
+            <div class="controls">
+                <button class="increment">+1</button>
+                <button class="decrement">-1</button>
+                <button class="reset">Reset</button>
+            </div>`
+    }
+};
+
+// The class — pure methods, minimal lifecycle glue
+class UserCounter extends HTMLElement {
+    async connectedCallback() {
+        const [vm, propagator] = await roundabout({ vm: this, ...raConfig });
+
+        // Set initial state — roundabout's getter/setters are already in place,
+        // so actions fire reactively as properties are assigned
+        this.count = 0;
+        this.username = 'User';
+        this.status = 'low';
+        this.statusMessage = '';
+        this.template = template;  // triggers createClone → render chain
+
+        if (this.hasAttribute('username')) this.username = this.getAttribute('username');
+        if (this.hasAttribute('initial-count'))
+            this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
+    }
+
+    createClone(self) {
+        const clone = self.template.content.cloneNode(true);
+        return {
+            incrementButton: clone.querySelector('.increment'),
+            decrementButton: clone.querySelector('.decrement'),
+            resetButton: clone.querySelector('.reset'),
+            clone,
+        };
+    }
+
+    render(self) {
+        return { '?.appendChild': self.clone, clone: self };
+    }
+
+    updateStatus(self) {
+        const { count } = self;
+        if (count < 10) return { status: 'low', statusMessage: 'Low count' };
+        if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
+        return { status: 'high', statusMessage: 'High count!' };
+    }
+
+    increment(self) { return { count: self.count + 1 }; }
+    decrement(self) { return { count: self.count - 1 }; }
+    reset(self) { return { count: 0 }; }
+
+    updateCountDisplay(self) {
+        return {
+            '?.clone?.q?..count-value?.textContent': self.count,
+            renderCount: 1,
+        };
+    }
+
+    updateStatusDisplay(self) {
+        return {
+            '?.clone?.q?..status?.className': `status ${self.status}`,
+            '?.clone?.q?..status-text?.textContent': self.statusMessage || self.status,
+        };
+    }
+
+    updateUsernameDisplay(self) {
+        return { '?.clone?.q?..username?.textContent': self.username };
+    }
+}
+```
+
+Notice what's absent: no manual `addEventListener` calls, no `this.querySelector(...)` in lifecycle code, no imperative `this.status = ...` assignments inside action methods. Every method is a pure function that receives state and returns new state. Roundabout handles the reactive wiring.
+
 ## How to be roundabout ready
 
 For a class to be optimized to work most effectively with roundabouts, it should implement interface RoundaboutReady:
@@ -1961,18 +2178,23 @@ actions: {
 
 ---
 
-#### `do`
-Specify a different method or inline function.
+#### `do` (discouraged for actions)
+
+The `do` property exists on the shared `LogicOp` type but is primarily intended for **positractions**, where you call generic functions that don't live on the view model. For actions, the action key itself is the method name — using `do` adds unnecessary indirection:
 
 ```typescript
+// ✅ Preferred: action key = method name
+actions: {
+    processData: {
+        ifKeyIn: ['data']
+    }
+}
+
+// ❌ Discouraged: using do to alias the method
 actions: {
     onDataChange: {
         ifKeyIn: ['data'],
-        do: 'processData'  // Call vm.processData() instead
-    },
-    calculate: {
-        ifKeyIn: ['a', 'b'],
-        do: ({a, b}) => ({ result: a + b })  // Inline function
+        do: 'processData'
     }
 }
 ```
