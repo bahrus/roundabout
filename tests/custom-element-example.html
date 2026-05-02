@@ -256,28 +256,10 @@
                 
                 // Action method: Calculate status based on count
                 updateStatus(self) {
-                    const {count} = self;
-                    //console.log('updateStatus', {count});
-                    
-                    let newStatus;
-                    let newMessage;
-                    
-                    if (count < 10) {
-                        newStatus = 'low';
-                        newMessage = 'Low count';
-                    } else if (count < 20) {
-                        newStatus = 'medium';
-                        newMessage = 'Medium count';
-                    } else {
-                        newStatus = 'high';
-                        newMessage = 'High count!';
-                    }
-                    
-                    return {
-                        status: newStatus,
-                        statusMessage: newMessage,
-                        
-                    };
+                    const { count } = self;
+                    if (count < 10) return { status: 'low', statusMessage: 'Low count' };
+                    if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
+                    return { status: 'high', statusMessage: 'High count!' };
                 }
                 
                 // User actions
