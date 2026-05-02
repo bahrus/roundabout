@@ -114,10 +114,10 @@
                 updateStatus: {
                     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
                 },
-                updateStatusDisplay: {
-                    ifKeyIn: ['status', 'statusMessage'],
-                    ifAllOf: ['clone'],
-                },
+                // updateStatusDisplay: {
+                //     ifKeyIn: ['status', 'statusMessage'],
+                //     ifAllOf: ['clone'],
+                // },
             },
             handlers: {
             },
@@ -153,6 +153,14 @@
                     ifAllOf: ['clone'],
                     assign: {
                         '?.clone?.q?..username?.textContent': '?.username'
+                    }
+                },
+                {
+                    ifKeyIn: ['statusClassName', 'statusMessageText'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..status?.className': '?.statusClassName',
+                        '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
                     }
                 },
                 {
@@ -261,19 +269,31 @@
                 // Action method: Calculate status based on count
                 updateStatus(self) {
                     const { count } = self;
-                    if (count < 10) return { status: 'low', statusMessage: 'Low count' };
-                    if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
-                    return { status: 'high', statusMessage: 'High count!' };
+                    let status = 'high', statusMessage = 'High count!';
+                    if (count < 10) {
+                        status = 'low';
+                        statusMessage=  'Low count'; 
+                    }else if (count < 20) { 
+                        status = 'medium'; 
+                        statusMessage = 'Medium count' 
+                    };
+                    //statusClassName = `status ${status}`
+                    return { 
+                        status, 
+                        statusMessage,
+                        statusClassName: `status ${status}`,
+                        statusMessageText: statusMessage || status
+                    };
                 }
                 
                 
-                updateStatusDisplay(self) {
-                    const {status, statusMessage} = self;
-                    return {
-                        '?.clone?.q?..status?.className': `status ${status}`,
-                        '?.clone?.q?..status-text?.textContent': statusMessage,
-                    }
-                }
+                // updateStatusDisplay(self) {
+                //     const {status, statusMessage} = self;
+                //     return {
+                //         '?.clone?.q?..status?.className': ,
+                //         '?.clone?.q?..status-text?.textContent': statusMessage,
+                //     }
+                // }
 
 
                 disconnectedCallback() {
