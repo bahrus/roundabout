@@ -252,6 +252,9 @@ const raConfig = {
     }
 };
 
+const template = document.createElement('template');
+template.innerHTML = raConfig.customData.innerHTML;
+
 // The class — pure methods, minimal lifecycle glue
 class UserCounter extends HTMLElement {
     async connectedCallback() {
