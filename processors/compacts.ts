@@ -28,7 +28,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
             reactions.set(parsed.sourceProp, []);
         }
         
-        if (parsed.type === 'on_event_inc') {
+        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set') {
             // Event listener compact: attach/detach listener when element property changes
             const listenerState = { abortController: undefined as AbortController | undefined };
             eventListenerStates.push(listenerState);
@@ -84,7 +84,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
 }
 
 interface ParsedCompact {
-    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch' | 'on_event_inc';
+    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch' | 'on_event_inc' | 'on_event_set';
     sourceProp: string;
     targetProp?: string;
     methodName?: string;
@@ -92,6 +92,7 @@ interface ParsedCompact {
     delayProp?: string;
     incrementBy?: number;
     eventName?: string;
+    setValue?: any;
 }
 
 async function parseCompact(key: string, value: any): Promise<ParsedCompact | null> {
@@ -198,6 +199,19 @@ async function parseCompact(key: string, value: any): Promise<ParsedCompact | nu
         };
     }
 
+    // on_EVENT_of_X_set_Y_to
+    match = key.match(/^on_(.+)_of_(.+)_set_(.+)_to$/);
+    if (match) {
+        return {
+            type: 'on_event_set',
+            eventName: match[1],
+            sourceProp: match[2],
+            targetProp: match[3],
+            delay: 0,
+            setValue: value
+        };
+    }
+
     return null;
 }
 
@@ -291,7 +305,11 @@ function setupEventCompactListener(
     state.abortController = abortController;
 
     element.addEventListener(parsed.eventName!, () => {
-        const current = vm[parsed.targetProp!] || 0;
-        vm[parsed.targetProp!] = current + (parsed.incrementBy || 1);
+        if (parsed.type === 'on_event_set') {
+            vm[parsed.targetProp!] = parsed.setValue;
+        } else {
+            const current = vm[parsed.targetProp!] || 0;
+            vm[parsed.targetProp!] = current + (parsed.incrementBy || 1);
+        }
     }, { signal: abortController.signal });
 }

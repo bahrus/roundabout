@@ -120,11 +120,11 @@
                 },
             },
             handlers: {
-                resetButton_to_reset_on: 'click',
             },
             compacts: {
                 on_click_of_incrementButton_inc_count_by: 1,
                 on_click_of_decrementButton_inc_count_by: -1,
+                on_click_of_resetButton_set_count_to: 0,
             },
             
             assignGingerlyOptions: {
@@ -262,12 +262,6 @@
                     if (count < 10) return { status: 'low', statusMessage: 'Low count' };
                     if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
                     return { status: 'high', statusMessage: 'High count!' };
-                }
-                
-                reset(self) {
-                    return {
-                        count: 0
-                    }
                 }
                 
                 

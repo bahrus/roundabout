@@ -18,7 +18,7 @@ export async function processCompacts(vm, compacts, onChange) {
         if (!reactions.has(parsed.sourceProp)) {
             reactions.set(parsed.sourceProp, []);
         }
-        if (parsed.type === 'on_event_inc') {
+        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set') {
             // Event listener compact: attach/detach listener when element property changes
             const listenerState = { abortController: undefined };
             eventListenerStates.push(listenerState);
@@ -162,6 +162,18 @@ async function parseCompact(key, value) {
             incrementBy: typeof value === 'number' ? value : 1
         };
     }
+    // on_EVENT_of_X_set_Y_to
+    match = key.match(/^on_(.+)_of_(.+)_set_(.+)_to$/);
+    if (match) {
+        return {
+            type: 'on_event_set',
+            eventName: match[1],
+            sourceProp: match[2],
+            targetProp: match[3],
+            delay: 0,
+            setValue: value
+        };
+    }
     return null;
 }
 async function executeCompact(vm, parsed, sourceValue) {
@@ -233,7 +245,12 @@ function setupEventCompactListener(vm, parsed, state) {
     const abortController = new AbortController();
     state.abortController = abortController;
     element.addEventListener(parsed.eventName, () => {
-        const current = vm[parsed.targetProp] || 0;
-        vm[parsed.targetProp] = current + (parsed.incrementBy || 1);
+        if (parsed.type === 'on_event_set') {
+            vm[parsed.targetProp] = parsed.setValue;
+        }
+        else {
+            const current = vm[parsed.targetProp] || 0;
+            vm[parsed.targetProp] = current + (parsed.incrementBy || 1);
+        }
     }, { signal: abortController.signal });
 }
