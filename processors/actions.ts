@@ -1,4 +1,4 @@
-import type { Actions, LogicOp, LogicOpWithDo } from '../types/roundabout/types.js';
+import type { Actions, LogicOp } from '../types/roundabout/types.js';
 
 interface ActionContext {
     rule: string;
@@ -32,7 +32,7 @@ export async function processActions<TProps = any, TActions = TProps>(
     
     // Register reactions for each action
     for (const [actionKey, actionConfig] of Object.entries(actions)) {
-        const state = await setupAction(vm, actionKey, actionConfig as LogicOpWithDo<TProps, TActions>, actionStates);
+        const state = await setupAction(vm, actionKey, actionConfig as LogicOp<TProps, TActions>, actionStates);
         actionStates.set(actionKey, state);
     }
     
@@ -50,7 +50,7 @@ export async function processActions<TProps = any, TActions = TProps>(
 }
 
 interface ActionState {
-    config: LogicOpWithDo<any, any>;
+    config: LogicOp<any, any>;
     monitoredProps: Set<string>;
     lastConditionsMet: boolean;
     pendingTimeout?: any;
@@ -67,14 +67,11 @@ function checkForCompactConflicts(vm: any, actions: Actions): void {
         });
     }
     
-    // Check for conflicts
+    // Check for conflicts — action key IS the method name
     for (const actionKey of Object.keys(actions)) {
-        const actionConfig = actions[actionKey] as LogicOpWithDo;
-        const methodName = typeof actionConfig.do === 'string' ? actionConfig.do : actionKey;
-        
-        if (compactInvokedMethods.has(methodName)) {
+        if (compactInvokedMethods.has(actionKey)) {
             throw new Error(
-                `Conflict detected: Method "${methodName}" is invoked by both a compact and an action. ` +
+                `Conflict detected: Method "${actionKey}" is invoked by both a compact and an action. ` +
                 `This creates ambiguity and is not allowed.`
             );
         }
@@ -84,7 +81,7 @@ function checkForCompactConflicts(vm: any, actions: Actions): void {
 async function setupAction<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOpWithDo<TProps, TActions>,
+    config: LogicOp<TProps, TActions>,
     actionStates: Map<string, ActionState>
 ): Promise<ActionState> {
     const vmAny = vm as any;
@@ -265,30 +262,14 @@ async function evaluateAndExecuteActionWithInternalRouting<TProps, TActions>(
 async function executeActionWithInternalRouting<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOpWithDo<TProps, TActions>,
+    config: LogicOp<TProps, TActions>,
     changedProperty: string
 ): Promise<void> {
     const vmAny = vm as any;
     
-    // Determine which method to call
-    let method: Function | undefined;
-    let methodName: string;
-    
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        } else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        } else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    } else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method: Function | undefined = vmAny[actionKey];
     
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);
@@ -328,7 +309,7 @@ async function executeActionWithInternalRouting<TProps, TActions>(
 
 function evaluateConditions<TProps, TActions>(
     vm: TProps & TActions,
-    config: LogicOpWithDo<TProps, TActions>
+    config: LogicOp<TProps, TActions>
 ): boolean {
     const vmAny = vm as any;
     
@@ -390,30 +371,14 @@ function evaluateConditions<TProps, TActions>(
 async function executeAction<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOpWithDo<TProps, TActions>,
+    config: LogicOp<TProps, TActions>,
     changedProperty: string
 ): Promise<void> {
     const vmAny = vm as any;
     
-    // Determine which method to call
-    let method: Function | undefined;
-    let methodName: string;
-    
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        } else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        } else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    } else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method: Function | undefined = vmAny[actionKey];
     
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);
@@ -596,30 +561,14 @@ async function processActionResult<TProps, TActions>(
 async function executeActionForInternalRouting<TProps, TActions>(
     vm: TProps & TActions,
     actionKey: string,
-    config: LogicOpWithDo<TProps, TActions>,
+    config: LogicOp<TProps, TActions>,
     changedProperty: string
 ): Promise<any> {
     const vmAny = vm as any;
     
-    // Determine which method to call
-    let method: Function | undefined;
-    let methodName: string;
-    
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        } else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        } else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    } else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method: Function | undefined = vmAny[actionKey];
     
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);

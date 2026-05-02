@@ -38,12 +38,10 @@ function checkForCompactConflicts(vm, actions) {
             compactInvokedMethods.add(method);
         });
     }
-    // Check for conflicts
+    // Check for conflicts — action key IS the method name
     for (const actionKey of Object.keys(actions)) {
-        const actionConfig = actions[actionKey];
-        const methodName = typeof actionConfig.do === 'string' ? actionConfig.do : actionKey;
-        if (compactInvokedMethods.has(methodName)) {
-            throw new Error(`Conflict detected: Method "${methodName}" is invoked by both a compact and an action. ` +
+        if (compactInvokedMethods.has(actionKey)) {
+            throw new Error(`Conflict detected: Method "${actionKey}" is invoked by both a compact and an action. ` +
                 `This creates ambiguity and is not allowed.`);
         }
     }
@@ -193,27 +191,9 @@ async function evaluateAndExecuteActionWithInternalRouting(vm, actionKey, state,
  */
 async function executeActionWithInternalRouting(vm, actionKey, config, changedProperty) {
     const vmAny = vm;
-    // Determine which method to call
-    let method;
-    let methodName;
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        }
-        else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        }
-        else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    }
-    else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method = vmAny[actionKey];
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);
         return;
@@ -295,27 +275,9 @@ function evaluateConditions(vm, config) {
 }
 async function executeAction(vm, actionKey, config, changedProperty) {
     const vmAny = vm;
-    // Determine which method to call
-    let method;
-    let methodName;
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        }
-        else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        }
-        else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    }
-    else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method = vmAny[actionKey];
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);
         return;
@@ -458,27 +420,9 @@ async function processActionResult(vm, result, debug) {
  */
 async function executeActionForInternalRouting(vm, actionKey, config, changedProperty) {
     const vmAny = vm;
-    // Determine which method to call
-    let method;
-    let methodName;
-    if (config.do) {
-        if (typeof config.do === 'function') {
-            method = config.do;
-            methodName = config.do.name || actionKey;
-        }
-        else if (typeof config.do === 'string') {
-            methodName = config.do;
-            method = vmAny[config.do];
-        }
-        else {
-            methodName = actionKey;
-            method = vmAny[actionKey];
-        }
-    }
-    else {
-        methodName = actionKey;
-        method = vmAny[actionKey];
-    }
+    // Action key IS the method name
+    const methodName = actionKey;
+    const method = vmAny[actionKey];
     if (typeof method !== 'function') {
         console.error(`Action method "${methodName}" not found on view model`);
         return undefined;
