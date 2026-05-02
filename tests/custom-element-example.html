@@ -118,10 +118,6 @@
                     ifKeyIn: ['status', 'statusMessage'],
                     ifAllOf: ['clone'],
                 },
-                updateUsernameDisplay: {
-                    ifKeyIn: ['username'],
-                    ifAllOf: ['clone'],
-                },
                 updateCountDisplay: {
                     ifKeyIn: ['count'],
                     ifAllOf: ['clone']
@@ -144,6 +140,15 @@
                     q: 'querySelector'
                 }
             },
+            merges: [
+                {
+                    ifKeyIn: ['username'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..username?.textContent': '?.username'
+                    }
+                },
+            ],
             customData: {
 
                 innerHTML: String.raw `
@@ -305,12 +310,6 @@
                     return {
                         '?.clone?.q?..status?.className': `status ${status}`,
                         '?.clone?.q?..status-text?.textContent': statusMessage || status,
-                    }
-                }
-
-                updateUsernameDisplay(self) {
-                    return {
-                        '?.clone?.q?..username?.textContent': self.username
                     }
                 }
 

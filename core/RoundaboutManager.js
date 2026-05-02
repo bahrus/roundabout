@@ -140,6 +140,9 @@ export class RoundaboutManager {
         if (this.options.positractions) {
             await this.processPositractions();
         }
+        if (this.options.merges) {
+            await this.processMerges();
+        }
     }
     async processCompacts() {
         const { processCompacts } = await import('../processors/compacts.js');
@@ -170,6 +173,11 @@ export class RoundaboutManager {
     async processPositractions() {
         const { processPositractions } = await import('../processors/positractions.js');
         const cleanup = await processPositractions(this.vm, this.options.positractions, (key) => this.handlePropertyChange(key, this.vm[key]));
+        this.cleanupFunctions.push(cleanup);
+    }
+    async processMerges() {
+        const { processMerges } = await import('../processors/merges.js');
+        const cleanup = await processMerges(this.vm, this.options.merges, (key) => this.handlePropertyChange(key, this.vm[key]));
         this.cleanupFunctions.push(cleanup);
     }
     async cleanup() {

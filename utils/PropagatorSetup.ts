@@ -392,6 +392,25 @@ export function inferPropertiesToMonitor(options: any): Set<string> {
         }
     }
     
+    // Infer from merges
+    if (options.merges) {
+        for (const merge of options.merges) {
+            const addArr = (value: any) => {
+                if (typeof value === 'string') {
+                    props.add(value);
+                } else if (Array.isArray(value)) {
+                    value.forEach((p: string) => props.add(p));
+                }
+            };
+            if (merge.ifAllOf) addArr(merge.ifAllOf);
+            if (merge.ifKeyIn) addArr(merge.ifKeyIn);
+            if (merge.ifNoneOf) addArr(merge.ifNoneOf);
+            if (merge.ifEquals) addArr(merge.ifEquals);
+            if (merge.ifAtLeastOneOf) addArr(merge.ifAtLeastOneOf);
+            if (merge.ifNotAllOf) addArr(merge.ifNotAllOf);
+        }
+    }
+    
     return props;
 }
 
