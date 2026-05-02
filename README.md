@@ -571,7 +571,7 @@ const model = {
     ageCount: 23
 };
 ...
-hitch:{
+hitches:{
     when_enhancedElement_emits_eventProp_inc_ageCount_by: 1,
 }
 ```
@@ -1065,7 +1065,7 @@ Hitches coordinate three members of the view model: an EventTarget element, an e
 ### Pattern
 
 ```typescript
-hitch: {
+hitches: {
     when_X_emits_Y_inc_Z_by: number
 }
 ```
@@ -1087,7 +1087,7 @@ const myObject = {
 const [vm] = await roundabout({
     vm: myObject,
     propagate: ['clickCount'],
-    hitch: {
+    hitches: {
         when_button_emits_eventName_inc_clickCount_by: 1
     }
 });
@@ -1109,7 +1109,7 @@ const myObject = {
 const [vm] = await roundabout({
     vm: myObject,
     propagate: ['activeButton', 'count'],
-    hitch: {
+    hitches: {
         when_activeButton_emits_eventName_inc_count_by: 1
     }
 });
@@ -1146,7 +1146,7 @@ const myObject = {
 const [vm] = await roundabout({
     vm: myObject,
     propagate: ['eventType', 'eventCount'],
-    hitch: {
+    hitches: {
         when_button_emits_eventType_inc_eventCount_by: 1
     }
 });
@@ -1177,7 +1177,7 @@ const myObject = {
 
 const [vm] = await roundabout({
     vm: myObject,
-    hitch: {
+    hitches: {
         when_elementRef_emits_eventName_inc_count_by: 1
     }
 });
@@ -1193,7 +1193,7 @@ Hitches automatically clean up listeners:
 ```typescript
 const [vm, propagator] = await roundabout({
     vm: myObject,
-    hitch: { /* ... */ }
+    hitches: { /* ... */ }
 });
 
 // Later, when done:
@@ -1204,7 +1204,7 @@ vm.RAController.abort();  // All hitch listeners are removed
 
 **Click counters:**
 ```typescript
-hitch: {
+hitches: {
     when_button_emits_click_inc_clickCount_by: 1
 }
 ```
@@ -1212,7 +1212,7 @@ hitch: {
 **Multi-button interfaces:**
 ```typescript
 // Track which button is active
-hitch: {
+hitches: {
     when_activeButton_emits_click_inc_actionCount_by: 1
 }
 ```
@@ -1220,7 +1220,7 @@ hitch: {
 **Different event types:**
 ```typescript
 // Switch between click, mouseenter, focus, etc.
-hitch: {
+hitches: {
     when_element_emits_eventType_inc_interactionCount_by: 1
 }
 ```
@@ -1228,7 +1228,7 @@ hitch: {
 **Custom increments:**
 ```typescript
 // Increment by different amounts
-hitch: {
+hitches: {
     when_button_emits_click_inc_score_by: 10
 }
 ```
