@@ -460,11 +460,11 @@ This was kind of concerning in the original take:
     },
 ```
 
-There may be some obscure role for do in actions (like auto generating a class), but normally do should never be used for actions.  "calculateStatus" is the name of the method, and giving it another name is confusing. 
+There may be some obscure role for do in actions (like auto generating a class), but normally the do property should never be used for actions.  "calculateStatus" is the name of the method, and giving it another name is confusing. 
 
-The do property is mostly only to be used by positractions
+The do property is mostly only to be used by positractions, not by actions.
 
-The type of LogicOp in the types file, that is shared by both actions and positractions, does have a do property.  Can you check if the do property is used at all within an action?  If not, maybe we should extend LogicOp with do, and make positractions refer to the extended one, and not actions?
+The type of LogicOp in the types file, that is shared by both actions and positractions, does have a do property.  Can you check if the do property is used at all within an action?  If so, what does it do?  If not, maybe we should extend LogicOp with do, and make positractions refer to the extended one, and not actions?
 
 This also took me by surprise:
 
