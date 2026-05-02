@@ -331,21 +331,14 @@
                 }
 
                 updateUsernameDisplay(self) {
-                    const {username, clone} = self;
-                    const usernameSpan = clone.querySelector('.username');
-                    if (usernameSpan) {
-                        usernameSpan.textContent = this.username;
+                    return {
+                        '?.clone?.q?..username?.textContent': self.username
                     }
                 }
 
                 updateCountDisplay(self) {
-                    const {clone, count} = self;
-                    //console.log('updateCountDisplay', {clone, count});
-                    const countValue = clone.querySelector('.count-value');
-                    if (countValue) {
-                        countValue.textContent = count;
-                    }
                     return {
+                        '?.clone?.q?..count-value?.textContent': self.count,
                         renderCount: 1,
                     }
                 }
