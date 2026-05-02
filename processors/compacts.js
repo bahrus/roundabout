@@ -1,6 +1,7 @@
 export async function processCompacts(vm, compacts, onChange) {
     const reactions = new Map();
     const vmAny = vm;
+    const eventListenerStates = [];
     // Track methods invoked by compacts for conflict detection with actions
     if (!vmAny.__roundaboutCompactMethods) {
         vmAny.__roundaboutCompactMethods = new Set();
@@ -17,10 +18,21 @@ export async function processCompacts(vm, compacts, onChange) {
         if (!reactions.has(parsed.sourceProp)) {
             reactions.set(parsed.sourceProp, []);
         }
-        const reactionFn = async (value) => {
-            await executeCompact(vm, parsed, value);
-        };
-        reactions.get(parsed.sourceProp).push(reactionFn);
+        if (parsed.type === 'on_event_inc') {
+            // Event listener compact: attach/detach listener when element property changes
+            const listenerState = { abortController: undefined };
+            eventListenerStates.push(listenerState);
+            const reactionFn = async (value) => {
+                setupEventCompactListener(vmAny, parsed, listenerState);
+            };
+            reactions.get(parsed.sourceProp).push(reactionFn);
+        }
+        else {
+            const reactionFn = async (value) => {
+                await executeCompact(vm, parsed, value);
+            };
+            reactions.get(parsed.sourceProp).push(reactionFn);
+        }
     }
     // Store reactions on the VM so RoundaboutManager can trigger them
     if (!vmAny.__roundaboutReactions) {
@@ -35,6 +47,12 @@ export async function processCompacts(vm, compacts, onChange) {
     }
     // Return cleanup function
     return () => {
+        // Abort event listener compacts
+        for (const state of eventListenerStates) {
+            if (state.abortController) {
+                state.abortController.abort();
+            }
+        }
         // Remove our reactions
         for (const [prop, fns] of reactions.entries()) {
             const existing = vmAny.__roundaboutReactions?.get(prop);
@@ -132,6 +150,18 @@ async function parseCompact(key, value) {
             eventName: typeof value === 'string' ? value : match[1]
         };
     }
+    // on_EVENT_of_X_inc_Y_by
+    match = key.match(/^on_(.+)_of_(.+)_inc_(.+)_by$/);
+    if (match) {
+        return {
+            type: 'on_event_inc',
+            eventName: match[1],
+            sourceProp: match[2],
+            targetProp: match[3],
+            delay: 0,
+            incrementBy: typeof value === 'number' ? value : 1
+        };
+    }
     return null;
 }
 async function executeCompact(vm, parsed, sourceValue) {
@@ -180,4 +210,30 @@ async function executeCompact(vm, parsed, sourceValue) {
             }
             break;
     }
+}
+/**
+ * Attach an event listener to an element property for on_EVENT_of_X_inc_Y_by compacts.
+ * Handles both live references and WeakRef-wrapped references.
+ * Cleans up the previous listener when the element changes.
+ */
+function setupEventCompactListener(vm, parsed, state) {
+    // Clean up previous listener
+    if (state.abortController) {
+        state.abortController.abort();
+        state.abortController = undefined;
+    }
+    let element = vm[parsed.sourceProp];
+    // Resolve WeakRef if needed
+    if (element && typeof element === 'object' && 'deref' in element) {
+        element = element.deref();
+    }
+    if (!element || !(element instanceof EventTarget)) {
+        return;
+    }
+    const abortController = new AbortController();
+    state.abortController = abortController;
+    element.addEventListener(parsed.eventName, () => {
+        const current = vm[parsed.targetProp] || 0;
+        vm[parsed.targetProp] = current + (parsed.incrementBy || 1);
+    }, { signal: abortController.signal });
 }

@@ -7,6 +7,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
 ): Promise<() => void> {
     const reactions = new Map<string, Array<(value: any) => Promise<void>>>();
     const vmAny = vm as any;
+    const eventListenerStates: Array<{ abortController: AbortController | undefined }> = [];
     
     // Track methods invoked by compacts for conflict detection with actions
     if (!vmAny.__roundaboutCompactMethods) {
@@ -27,11 +28,23 @@ export async function processCompacts<TProps = any, TActions = TProps>(
             reactions.set(parsed.sourceProp, []);
         }
         
-        const reactionFn = async (value: any) => {
-            await executeCompact(vm, parsed, value);
-        };
-        
-        reactions.get(parsed.sourceProp)!.push(reactionFn);
+        if (parsed.type === 'on_event_inc') {
+            // Event listener compact: attach/detach listener when element property changes
+            const listenerState = { abortController: undefined as AbortController | undefined };
+            eventListenerStates.push(listenerState);
+
+            const reactionFn = async (value: any) => {
+                setupEventCompactListener(vmAny, parsed, listenerState);
+            };
+
+            reactions.get(parsed.sourceProp)!.push(reactionFn);
+        } else {
+            const reactionFn = async (value: any) => {
+                await executeCompact(vm, parsed, value);
+            };
+            
+            reactions.get(parsed.sourceProp)!.push(reactionFn);
+        }
     }
 
     // Store reactions on the VM so RoundaboutManager can trigger them
@@ -49,6 +62,12 @@ export async function processCompacts<TProps = any, TActions = TProps>(
 
     // Return cleanup function
     return () => {
+        // Abort event listener compacts
+        for (const state of eventListenerStates) {
+            if (state.abortController) {
+                state.abortController.abort();
+            }
+        }
         // Remove our reactions
         for (const [prop, fns] of reactions.entries()) {
             const existing = vmAny.__roundaboutReactions?.get(prop);
@@ -65,7 +84,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
 }
 
 interface ParsedCompact {
-    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch';
+    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch' | 'on_event_inc';
     sourceProp: string;
     targetProp?: string;
     methodName?: string;
@@ -166,6 +185,19 @@ async function parseCompact(key: string, value: any): Promise<ParsedCompact | nu
         };
     }
 
+    // on_EVENT_of_X_inc_Y_by
+    match = key.match(/^on_(.+)_of_(.+)_inc_(.+)_by$/);
+    if (match) {
+        return {
+            type: 'on_event_inc',
+            eventName: match[1],
+            sourceProp: match[2],
+            targetProp: match[3],
+            delay: 0,
+            incrementBy: typeof value === 'number' ? value : 1
+        };
+    }
+
     return null;
 }
 
@@ -226,4 +258,40 @@ async function executeCompact<TProps, TActions>(
             }
             break;
     }
+}
+
+/**
+ * Attach an event listener to an element property for on_EVENT_of_X_inc_Y_by compacts.
+ * Handles both live references and WeakRef-wrapped references.
+ * Cleans up the previous listener when the element changes.
+ */
+function setupEventCompactListener(
+    vm: any,
+    parsed: ParsedCompact,
+    state: { abortController: AbortController | undefined }
+): void {
+    // Clean up previous listener
+    if (state.abortController) {
+        state.abortController.abort();
+        state.abortController = undefined;
+    }
+
+    let element = vm[parsed.sourceProp];
+
+    // Resolve WeakRef if needed
+    if (element && typeof element === 'object' && 'deref' in element) {
+        element = element.deref();
+    }
+
+    if (!element || !(element instanceof EventTarget)) {
+        return;
+    }
+
+    const abortController = new AbortController();
+    state.abortController = abortController;
+
+    element.addEventListener(parsed.eventName!, () => {
+        const current = vm[parsed.targetProp!] || 0;
+        vm[parsed.targetProp!] = current + (parsed.incrementBy || 1);
+    }, { signal: abortController.signal });
 }

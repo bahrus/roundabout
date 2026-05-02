@@ -121,8 +121,10 @@
             },
             handlers: {
                 resetButton_to_reset_on: 'click',
-                incrementButton_to_increment_on: 'click',
-                decrementButton_to_decrement_on: 'click',
+            },
+            compacts: {
+                on_click_of_incrementButton_inc_count_by: 1,
+                on_click_of_decrementButton_inc_count_by: -1,
             },
             
             assignGingerlyOptions: {
@@ -260,19 +262,6 @@
                     if (count < 10) return { status: 'low', statusMessage: 'Low count' };
                     if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
                     return { status: 'high', statusMessage: 'High count!' };
-                }
-                
-                // User actions
-                increment(self) {
-                    return {
-                        count: self.count + 1,
-                    }
-                }
-                
-                decrement(self) {
-                    return {
-                        count: self.count - 1,
-                    }
                 }
                 
                 reset(self) {

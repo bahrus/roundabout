@@ -382,6 +382,10 @@ function extractTargetProperty(compactKey) {
     match = compactKey.match(/^when_.+?_changes_inc_(.+?)_by$/);
     if (match)
         return match[1];
+    // on_EVENT_of_X_inc_Y_by -> Y
+    match = compactKey.match(/^on_.+?_of_.+?_inc_(.+?)_by$/);
+    if (match)
+        return match[1];
     return null;
 }
 function extractSourceProperty(compactKey) {
@@ -399,6 +403,10 @@ function extractSourceProperty(compactKey) {
         return match[1];
     // when_X_changes_call_Y -> X
     match = compactKey.match(/^when_(.+?)_changes_/);
+    if (match)
+        return match[1];
+    // on_EVENT_of_X_inc_Y_by -> X
+    match = compactKey.match(/^on_.+?_of_(.+?)_inc_/);
     if (match)
         return match[1];
     return null;
