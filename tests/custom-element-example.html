@@ -118,11 +118,6 @@
                     ifKeyIn: ['status', 'statusMessage'],
                     ifAllOf: ['clone'],
                 },
-                render: {
-                    ifAllOf: ['renderCount'],
-                },
-
-
             },
             handlers: {
                 resetButton_to_reset_on: 'click',
@@ -150,6 +145,13 @@
                     assign:{
                         '?.clone?.q?..count-value?.textContent': '?.count',
                         renderCount: 1,
+                    }
+                },
+                {
+                    ifAllOf: ['renderCount'],
+                    assign: {
+                        '?.appendChild': '?.clone',
+                        clone: '?.',
                     }
                 }
             ],
@@ -279,15 +281,6 @@
                     }
                 }
                 
-                // UI rendering methods
-                render(self) {
-                    return {
-                        '?.appendChild': self.clone,
-                        clone: self,
-                    }
-                }
-                
-
                 
                 updateStatusDisplay(self) {
                     const {status, statusMessage} = self;
