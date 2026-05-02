@@ -41,7 +41,7 @@
             const [vm, propagator] = await roundabout({
                 vm: myObject,
                 propagate: ['eventName', 'eventCount'],
-                hitch: {
+                hitches: {
                     when_myButton_emits_eventName_inc_eventCount_by: 1
                 }
             });

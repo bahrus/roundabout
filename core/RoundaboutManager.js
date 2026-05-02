@@ -131,7 +131,7 @@ export class RoundaboutManager {
         if (this.options.handlers) {
             await this.processHandlers();
         }
-        if (this.options.hitch) {
+        if (this.options.hitches) {
             await this.processHitches();
         }
         if (this.infractions) {
@@ -162,7 +162,7 @@ export class RoundaboutManager {
     }
     async processHitches() {
         const { processHitches } = await import('../processors/hitches.js');
-        const cleanup = await processHitches(this.vm, this.options.hitch, (key) => this.handlePropertyChange(key, this.vm[key]));
+        const cleanup = await processHitches(this.vm, this.options.hitches, (key) => this.handlePropertyChange(key, this.vm[key]));
         this.cleanupFunctions.push(cleanup);
     }
     async processInfractions() {

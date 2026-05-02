@@ -306,8 +306,8 @@ export function inferPropertiesToMonitor(options) {
         }
     }
     // Infer from hitches
-    if (options.hitch) {
-        for (const key of Object.keys(options.hitch)) {
+    if (options.hitches) {
+        for (const key of Object.keys(options.hitches)) {
             // when_X_emits_Y_inc_Z_by
             const match = key.match(/^when_(.+?)_emits/);
             if (match)

@@ -160,7 +160,7 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
             await this.processHandlers();
         }
 
-        if (this.options.hitch) {
+        if (this.options.hitches) {
             await this.processHitches();
         }
 
@@ -212,7 +212,7 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         const { processHitches } = await import('../processors/hitches.js');
         const cleanup = await processHitches(
             this.vm,
-            this.options.hitch!,
+            this.options.hitches!,
             (key: string) => this.handlePropertyChange(key, this.vm[key as keyof typeof this.vm])
         );
         this.cleanupFunctions.push(cleanup);
