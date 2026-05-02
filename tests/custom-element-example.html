@@ -108,16 +108,9 @@
             // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
             // firing on every change (it only fires once then stops)
             actions: {
-                // createClone: {
-                //     ifAllOf: ['template'],
-                // },
                 updateStatus: {
                     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
                 },
-                // updateStatusDisplay: {
-                //     ifKeyIn: ['status', 'statusMessage'],
-                //     ifAllOf: ['clone'],
-                // },
             },
             handlers: {
             },
@@ -258,12 +251,8 @@
                     
                     // Store propagator for cleanup
                     this._propagator = propagator;
-                    
 
                 }
-
-
-
 
                 
                 // Action method: Calculate status based on count
@@ -277,7 +266,6 @@
                         status = 'medium'; 
                         statusMessage = 'Medium count' 
                     };
-                    //statusClassName = `status ${status}`
                     return { 
                         status, 
                         statusMessage,
@@ -285,15 +273,6 @@
                         statusMessageText: statusMessage || status
                     };
                 }
-                
-                
-                // updateStatusDisplay(self) {
-                //     const {status, statusMessage} = self;
-                //     return {
-                //         '?.clone?.q?..status?.className': ,
-                //         '?.clone?.q?..status-text?.textContent': statusMessage,
-                //     }
-                // }
 
 
                 disconnectedCallback() {

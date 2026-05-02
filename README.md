@@ -320,6 +320,101 @@ class UserCounter extends HTMLElement {
 
 Notice what's absent: no manual `addEventListener` calls, no `this.querySelector(...)` in lifecycle code, no imperative `this.status = ...` assignments inside action methods. Every method is a pure function that receives state and returns new state. Roundabout handles the reactive wiring.
 
+### Going fully declarative with merges and compacts
+
+The example above still has methods for `increment`, `decrement`, `reset`, `createClone`, `render`, `updateCountDisplay`, `updateStatusDisplay`, and `updateUsernameDisplay`. Most of these are simple enough to express declaratively. Using **merges** (JSON-serializable reactive assignments) and the **`on_EVENT_of_X`** compact patterns, we can eliminate all but the one method that contains real logic (`updateStatus`):
+
+```javascript
+const raConfig = {
+    weakRef: {
+        properties: ['incrementButton', 'decrementButton', 'resetButton'],
+        logIfCollected: 'warn'
+    },
+    actions: {
+        // The only action left — contains branching logic that can't be JSON-serialized
+        updateStatus: { ifKeyIn: ['count'] },
+    },
+    compacts: {
+        // Button clicks directly modify count — no methods needed
+        on_click_of_incrementButton_inc_count_by: 1,
+        on_click_of_decrementButton_inc_count_by: -1,
+        on_click_of_resetButton_set_count_to: 0,
+    },
+    merges: [
+        // Clone the template when it becomes available
+        { ifAllOf: ['template'], assign: { clone: '?.template?.content?.cloneNode?.true' } },
+        // Extract button references from the clone
+        {
+            ifAllOf: ['clone'],
+            assign: {
+                incrementButton: '?.clone?.q?..increment',
+                decrementButton: '?.clone?.q?..decrement',
+                resetButton: '?.clone?.q?..reset',
+            }
+        },
+        // Push username into the DOM
+        { ifKeyIn: ['username'], ifAllOf: ['clone'], assign: { '?.clone?.q?..username?.textContent': '?.username' } },
+        // Push status into the DOM
+        {
+            ifKeyIn: ['statusClassName', 'statusMessageText'],
+            ifAllOf: ['clone'],
+            assign: {
+                '?.clone?.q?..status?.className': '?.statusClassName',
+                '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+            }
+        },
+        // Push count into the DOM and trigger render
+        { ifKeyIn: ['count'], ifAllOf: ['clone'], assign: { '?.clone?.q?..count-value?.textContent': '?.count', renderCount: 1 } },
+        // Append clone to the element
+        { ifAllOf: ['renderCount'], assign: { '?.appendChild': '?.clone', clone: '?.' } },
+    ],
+    assignGingerlyOptions: {
+        withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
+        aka: { q: 'querySelector' }
+    },
+};
+```
+
+The class shrinks to just lifecycle glue and the one method with real logic:
+
+```javascript
+class UserCounter extends HTMLElement {
+    async connectedCallback() {
+        const [vm] = await roundabout({ vm: this, ...raConfig });
+        this.count = 0;
+        this.username = 'User';
+        this.status = 'low';
+        this.statusMessage = '';
+        this.renderCount = 0;
+        this.template = template;
+        if (this.hasAttribute('username')) this.username = this.getAttribute('username');
+        if (this.hasAttribute('initial-count'))
+            this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
+    }
+
+    // The only method — branching logic that can't be expressed declaratively
+    updateStatus(self) {
+        const { count } = self;
+        let status = 'high', statusMessage = 'High count!';
+        if (count < 10) { status = 'low'; statusMessage = 'Low count'; }
+        else if (count < 20) { status = 'medium'; statusMessage = 'Medium count'; }
+        return {
+            status, statusMessage,
+            statusClassName: `status ${status}`,
+            statusMessageText: statusMessage || status,
+        };
+    }
+}
+```
+
+What changed:
+- **`increment`, `decrement`, `reset`** → replaced by `on_click_of_X_inc_Y_by` and `on_click_of_X_set_Y_to` compacts
+- **`createClone`, `render`** → replaced by merges using assignGingerly's `cloneNode` and `appendChild` method invocation
+- **`updateCountDisplay`, `updateUsernameDisplay`, `updateStatusDisplay`** → replaced by merges that push vm properties into the DOM
+- **`updateStatus`** stays as an action — it contains branching logic (`if/else`) that can't be expressed in JSON
+
+The entire `raConfig` object is JSON-serializable. The only imperative code left is `connectedCallback` (lifecycle glue) and `updateStatus` (real logic).
+
 ## How to be roundabout ready
 
 For a class to be optimized to work most effectively with roundabouts, it should implement interface RoundaboutReady:
@@ -1034,6 +1129,47 @@ vm.status = 'active';  // → 'status-changed' event is dispatched
 
 ---
 
+### Event Listener Compacts
+
+#### `on_EVENT_of_X_inc_Y_by`
+Listens for a DOM event on an EventTarget property and increments a target property. Supports both live references and WeakRef-wrapped references. The listener is automatically attached when the element property is set and cleaned up when it changes or is removed.
+
+```typescript
+compacts: {
+    on_click_of_incrementButton_inc_count_by: 1,    // Increment by 1 on click
+    on_click_of_decrementButton_inc_count_by: -1,   // Decrement by 1 on click
+}
+```
+
+**Example:**
+```javascript
+vm.incrementButton = document.querySelector('.increment');
+// Now clicking the button increments vm.count by 1
+
+vm.incrementButton = anotherButton;
+// Old listener removed, new listener attached to anotherButton
+```
+
+---
+
+#### `on_EVENT_of_X_set_Y_to`
+Listens for a DOM event on an EventTarget property and sets a target property to a fixed value. Supports both live references and WeakRef-wrapped references.
+
+```typescript
+compacts: {
+    on_click_of_resetButton_set_count_to: 0,        // Reset to 0 on click
+    on_click_of_clearButton_set_searchText_to: '',   // Clear text on click
+}
+```
+
+**Example:**
+```javascript
+vm.resetButton = document.querySelector('.reset');
+// Now clicking the button sets vm.count to 0
+```
+
+---
+
 ## Quick Reference Table
 
 | Pattern | Purpose | RHS Value | Example |
@@ -1046,6 +1182,8 @@ vm.status = 'active';  // → 'status-changed' event is dispatched
 | `when_X_changes_toggle_Y` | Toggle boolean | Delay (ms) | `when_click_changes_toggle_active: 0` |
 | `when_X_changes_inc_Y_by` | Increment counter | Amount | `when_event_changes_inc_count_by: 1` |
 | `when_X_changes_dispatch` | Fire event | Event name | `when_state_changes_dispatch: 'changed'` |
+| `on_EVENT_of_X_inc_Y_by` | Increment on DOM event | Amount | `on_click_of_button_inc_count_by: 1` |
+| `on_EVENT_of_X_set_Y_to` | Set value on DOM event | Value to set | `on_click_of_reset_set_count_to: 0` |
 
 ---
 
@@ -1254,6 +1392,105 @@ Hitches handle edge cases gracefully:
 **Pattern**: `when_X_emits_Y_inc_Z_by: number`
 
 **Testing**: See `tests/hitches/` for comprehensive examples.
+
+---
+
+## Merges Reference
+
+Merges are fully JSON-serializable reactive rules. When their conditions are met, they resolve RHS path strings against the view model and assign the results into the view model using `assignFrom` from assign-gingerly. No methods or code required.
+
+### Pattern
+
+```typescript
+merges: [
+    {
+        ifKeyIn: ['username'],       // Standard LogicOp conditions
+        ifAllOf: ['clone'],
+        assign: {                    // LHS = target path, RHS = source path resolved against vm
+            '?.clone?.q?..username?.textContent': '?.username'
+        }
+    }
+]
+```
+
+### How it works
+
+Each merge entry has:
+- **Conditions** (`ifKeyIn`, `ifAllOf`, `ifNoneOf`, etc.) — same as actions, determines when the merge fires
+- **`assign`** — an object where keys are assignGingerly LHS paths (targets) and values are `?.`-prefixed path strings resolved against the view model (sources). Non-path values pass through as literals.
+
+When conditions are met, roundabout calls `assignFrom(vm, assign, { from: vm, ...assignGingerlyOptions })`, which:
+1. Resolves each RHS `?.` path against the vm
+2. Assigns the resolved values into the vm using assignGingerly
+
+### Examples
+
+**Simple property-to-DOM binding:**
+```typescript
+merges: [
+    {
+        ifKeyIn: ['username'],
+        ifAllOf: ['clone'],
+        assign: {
+            '?.clone?.q?..username?.textContent': '?.username'
+        }
+    }
+]
+```
+
+**Multiple assignments in one merge:**
+```typescript
+merges: [
+    {
+        ifKeyIn: ['statusClassName', 'statusMessageText'],
+        ifAllOf: ['clone'],
+        assign: {
+            '?.clone?.q?..status?.className': '?.statusClassName',
+            '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+        }
+    }
+]
+```
+
+**Literal values (non-path RHS):**
+```typescript
+merges: [
+    {
+        ifKeyIn: ['count'],
+        ifAllOf: ['clone'],
+        assign: {
+            '?.clone?.q?..count-value?.textContent': '?.count',
+            renderCount: 1,  // Literal value, not a path
+        }
+    }
+]
+```
+
+**Method invocation via assignGingerly:**
+```typescript
+merges: [
+    {
+        ifAllOf: ['template'],
+        assign: {
+            clone: '?.template?.content?.cloneNode?.true'
+        }
+    },
+    {
+        ifAllOf: ['renderCount'],
+        assign: {
+            '?.appendChild': '?.clone',
+            clone: '?.',  // Resolves to the vm itself
+        }
+    }
+]
+```
+
+### Key points
+
+- Merges inherit `assignGingerlyOptions` from the roundabout config (e.g., `withMethods`, `aka`)
+- RHS strings starting with `?.` are resolved as paths against the vm; all other values pass through as-is
+- Merges use the same condition evaluation as actions (`ifKeyIn` fires on every change, others fire on transition)
+- The `delay` and `debug` options from `LogicOp` are supported
 
 ---
 
