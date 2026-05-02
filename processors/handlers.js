@@ -64,7 +64,7 @@ async function setupHandler(vm, parsed, abortSignal, abortControllers, propertyL
                 // Merge result back if it's an object
                 if (result && typeof result === 'object' && !Array.isArray(result)) {
                     const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-                    await assignGingerly(vm, result);
+                    await assignGingerly(vm, result, vmAny.__roundaboutAssignGingerlyOptions);
                 }
             }
             catch (error) {

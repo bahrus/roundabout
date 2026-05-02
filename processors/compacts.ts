@@ -201,7 +201,7 @@ async function executeCompact<TProps, TActions>(
                 const result = await vmAny[parsed.methodName](vm);
                 if (result && typeof result === 'object') {
                     const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-                    await assignGingerly(vm, result);
+                    await assignGingerly(vm, result, vmAny.__roundaboutAssignGingerlyOptions);
                 }
             }
             break;

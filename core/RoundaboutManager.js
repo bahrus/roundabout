@@ -54,6 +54,15 @@ export class RoundaboutManager {
             };
         }
         this.vm = vm;
+        // Store assignGingerlyOptions on VM so processors can access them
+        if (this.options.assignGingerlyOptions) {
+            Object.defineProperty(vm, '__roundaboutAssignGingerlyOptions', {
+                value: this.options.assignGingerlyOptions,
+                enumerable: false,
+                writable: false,
+                configurable: true
+            });
+        }
     }
     async setupPropagatorAndProperties() {
         const { setupPropagator, inferPropertiesToMonitor } = await import('../utils/PropagatorSetup.js');

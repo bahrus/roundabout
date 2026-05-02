@@ -9,7 +9,7 @@ export async function roundabout<TProps = any, TActions = TProps, ETProps = TPro
     const returnObj = await manager.initialize();
     const initVals = options.initialPropVals || options.defaultPropVals;
     if(initVals){
-        (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals);
+        (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignGingerlyOptions);
     }
     return returnObj;
 }
