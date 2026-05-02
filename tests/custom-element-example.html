@@ -190,7 +190,16 @@
     <button class="decrement">-1</button>
     <button class="reset">Reset</button>
 </div>
-                ` 
+                `,
+                withAttrs: {
+                    //base: '',
+                    count: 'initial-count',
+                    _count: {
+                        instanceOf: 'Number',
+                        defaultIfNull: 10,
+                    },
+                    username: 'username'
+                } 
             }
         };
 
@@ -198,6 +207,8 @@
             //addLog('Starting custom element test...');
             
             const { roundabout } = await import('../index.js');
+            const { parseWithAttrs} = await import('assign-gingerly/parseWithAttrs.js');
+            const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
 
             const template = document.createElement('template');
             template.innerHTML = raConfig.customData.innerHTML;
@@ -233,14 +244,8 @@
 
                     
                     //addLog(`UserCounter connected: ${this.username}`);
-                    
-                    // Get initial attributes
-                    if (this.hasAttribute('username')) {
-                        this.username = this.getAttribute('username');
-                    }
-                    if (this.hasAttribute('initial-count')) {
-                        this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
-                    }
+                    const attrVals = parseWithAttrs(this, raConfig.customData.withAttrs, /.*/);
+                    assignGingerly(this, test);
                     
 
                     
