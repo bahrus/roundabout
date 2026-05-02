@@ -192,11 +192,10 @@
 </div>
                 `,
                 withAttrs: {
-                    //base: '',
                     count: 'initial-count',
                     _count: {
                         instanceOf: 'Number',
-                        defaultIfNull: 10,
+                        valIfNull: 0,
                     },
                     username: 'username'
                 } 
@@ -235,7 +234,7 @@
                         ...raConfig,
                     });
                     // Render initial UI
-                    this.count = 0;
+                    //this.count = 0;
                     //this.username = 'User';
                     this.status = 'low';
                     this.statusMessage = '';
@@ -244,8 +243,8 @@
 
                     
                     //addLog(`UserCounter connected: ${this.username}`);
-                    const attrVals = parseWithAttrs(this, raConfig.customData.withAttrs, /.*/);
-                    assignGingerly(this, test);
+                    const attrVals = parseWithAttrs(this, raConfig.customData.withAttrs, true);
+                    assignGingerly(this, attrVals);
                     
 
                     
