@@ -118,10 +118,6 @@
                     ifKeyIn: ['status', 'statusMessage'],
                     ifAllOf: ['clone'],
                 },
-                updateCountDisplay: {
-                    ifKeyIn: ['count'],
-                    ifAllOf: ['clone']
-                },
                 render: {
                     ifAllOf: ['renderCount'],
                 },
@@ -148,6 +144,14 @@
                         '?.clone?.q?..username?.textContent': '?.username'
                     }
                 },
+                {
+                    ifKeyIn: ['count'],
+                    ifAllOf: ['clone'],
+                    assign:{
+                        '?.clone?.q?..count-value?.textContent': '?.count',
+                        renderCount: 1,
+                    }
+                }
             ],
             customData: {
 
@@ -313,12 +317,6 @@
                     }
                 }
 
-                updateCountDisplay(self) {
-                    return {
-                        '?.clone?.q?..count-value?.textContent': self.count,
-                        renderCount: 1,
-                    }
-                }
 
                 disconnectedCallback() {
                     addLog(`UserCounter disconnected: ${this.username}`);
