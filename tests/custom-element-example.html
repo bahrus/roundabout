@@ -82,6 +82,11 @@
     <h2>Custom Element with Roundabout Demo</h2>
     <user-counter id="counter1" username="Alice" initial-count="5"></user-counter>
     <user-counter id="counter2" username="Bob" initial-count="15"></user-counter>
+
+    <user-counter id="counter3" initial-count=25></user-counter>
+    <script>
+        counter3.username = 'Bruce';
+    </script>
     
     <script type="module">
         const log = document.getElementById('log');
@@ -220,7 +225,7 @@
                     });
                     // Render initial UI
                     this.count = 0;
-                    this.username = 'User';
+                    //this.username = 'User';
                     this.status = 'low';
                     this.statusMessage = '';
                     this.renderCount = 0;
