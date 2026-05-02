@@ -95,8 +95,8 @@
             console.log(msg);
         }
 
+        //JSON Serializable
         const raConfig = {
-            //propagate: ['count', 'username', 'status', 'statusMessage'],
                         
             // WeakRef for button references to prevent memory leaks
             weakRef: {
@@ -138,15 +138,8 @@
                 decrementButton_to_decrement_on: 'click',
             },
             
-            // Compacts: Simple property transformations
-            compacts: {
-                // When status changes, update the status message
-                //when_count_changes_call_updateStatus: 0,
-                echo_status_to_statusMessage: 0,
-                //when_renderCount_changes_call_render: 0,
-            },
             assignGingerlyOptions: {
-                withMethods: ['querySelector', 'appendChild'],
+                withMethods: ['querySelector', 'appendChild', 'add'],
                 aka: {
                     q: 'querySelector'
                 }
@@ -234,9 +227,7 @@
 
                 }
 
-                hydrate(self){
 
-                }
 
                 createClone(self){
                     const {template} = self;
@@ -252,10 +243,7 @@
                     }
                 }
                 
-                disconnectedCallback() {
-                    addLog(`UserCounter disconnected: ${this.username}`);
-                    // Cleanup is handled automatically by roundabout's AbortController
-                }
+
                 
                 // Action method: Calculate status based on count
                 updateStatus(self) {
@@ -285,16 +273,14 @@
                 
                 // User actions
                 increment(self) {
-                    const {count} = self;
                     return {
-                        count: count + 1,
+                        count: self.count + 1,
                     }
                 }
                 
                 decrement(self) {
-                    const {count} = self;
                     return {
-                        count: count - 1,
+                        count: self.count - 1,
                     }
                 }
                 
@@ -306,9 +292,8 @@
                 
                 // UI rendering methods
                 render(self) {
-                    const {clone} = self;
                     return {
-                        '?.appendChild': clone,
+                        '?.appendChild': self.clone,
                         clone: self,
                     }
                 }
@@ -316,18 +301,11 @@
 
                 
                 updateStatusDisplay(self) {
-                    const {clone, status, statusMessage} = self;
-                    //console.log({status, statusMessage});
-                    const statusDiv = clone.querySelector('.status');
-                    const statusText = clone.querySelector('.status-text');
-                    
-                    if (statusDiv) {
-                        statusDiv.className = `status ${status}`;
+                    const {status, statusMessage} = self;
+                    return {
+                        '?.clone?.q?..status?.className': `status ${status}`,
+                        '?.clone?.q?..status-text?.textContent': statusMessage || status,
                     }
-                    if (statusText) {
-                        statusText.textContent = statusMessage || status;
-                    }
-
                 }
 
                 updateUsernameDisplay(self) {
@@ -341,6 +319,11 @@
                         '?.clone?.q?..count-value?.textContent': self.count,
                         renderCount: 1,
                     }
+                }
+
+                disconnectedCallback() {
+                    addLog(`UserCounter disconnected: ${this.username}`);
+                    // Cleanup is handled automatically by roundabout's AbortController
                 }
                 
 
