@@ -96,7 +96,7 @@
         }
 
         const raConfig = {
-            propagate: ['count', 'username', 'status', 'statusMessage'],
+            //propagate: ['count', 'username', 'status', 'statusMessage'],
                         
             // WeakRef for button references to prevent memory leaks
             weakRef: {
@@ -182,12 +182,6 @@
              * - Proper lifecycle management
              */
             class UserCounter extends HTMLElement {
-                constructor() {
-                    super();
-                    
-                    // Don't initialize properties here - let roundabout handle them
-                    // This ensures they get converted to getter/setters properly
-                }
                 
                 async connectedCallback() {
                     // Setup roundabout for reactive property management
@@ -197,7 +191,6 @@
                         ...raConfig,
                     });
                     // Render initial UI
-                    //this.render();
                     this.count = 0;
                     this.username = 'User';
                     this.status = 'low';
@@ -232,21 +225,6 @@
                     this._propagator = propagator;
                     
 
-                    
-                    // Setup button event listeners
-                    // if (this.incrementButton) {
-                    //     this.incrementButton.addEventListener('click', () => this.increment());
-                    // }
-                    // if (this.decrementButton) {
-                    //     this.decrementButton.addEventListener('click', () => this.decrement());
-                    // }
-                    // if (this.resetButton) {
-                    //     this.resetButton.addEventListener('click', () => this.reset());
-                    // }
-                    
-                    // Note: Initial status calculation happens automatically via actions during roundabout initialization
-                    
-                    //addLog(`UserCounter initialized: ${this.username}, count=${this.count}, status=${this.status}`);
                 }
 
                 hydrate(self){
@@ -275,7 +253,7 @@
                 // Action method: Calculate status based on count
                 updateStatus(self) {
                     const {count} = self;
-                    console.log('updateStatus', {count});
+                    //console.log('updateStatus', {count});
                     
                     let newStatus;
                     let newMessage;
@@ -324,7 +302,7 @@
                     const {clone} = self;
                     this.appendChild(clone);
                     return {
-                        clone: this,
+                        clone: self,
                     }
                 }
                 
@@ -332,7 +310,7 @@
                 
                 updateStatusDisplay(self) {
                     const {clone, status, statusMessage} = self;
-                    console.log({status, statusMessage});
+                    //console.log({status, statusMessage});
                     const statusDiv = clone.querySelector('.status');
                     const statusText = clone.querySelector('.status-text');
                     
@@ -355,6 +333,7 @@
 
                 updateCountDisplay(self) {
                     const {clone, count} = self;
+                    //console.log('updateCountDisplay', {clone, count});
                     const countValue = clone.querySelector('.count-value');
                     if (countValue) {
                         countValue.textContent = count;
