@@ -108,9 +108,9 @@
             // Note: Using ifAllOf instead of ifKeyIn because ifKeyIn has issues with
             // firing on every change (it only fires once then stops)
             actions: {
-                createClone: {
-                    ifAllOf: ['template'],
-                },
+                // createClone: {
+                //     ifAllOf: ['template'],
+                // },
                 updateStatus: {
                     ifKeyIn: ['count'],  // Fire when count is truthy (always, since it's a number)
                 },
@@ -128,12 +128,26 @@
             },
             
             assignGingerlyOptions: {
-                withMethods: ['querySelector', 'appendChild', 'add'],
+                withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
                 aka: {
                     q: 'querySelector'
                 }
             },
             merges: [
+                {
+                    ifAllOf: ['template'],
+                    assign: {
+                        clone: '?.template?.content?.cloneNode?.true'
+                    },
+                },
+                {
+                    ifAllOf: ['clone'],
+                    assign: {
+                        incrementButton:  '?.clone?.q?..increment',
+                        decrementButton: '?.clone?.q?..decrement',
+                        resetButton: "?.clone?.q?..reset"
+                    }
+                },
                 {
                     ifKeyIn: ['username'],
                     ifAllOf: ['clone'],
@@ -242,19 +256,19 @@
 
 
 
-                createClone(self){
-                    const {template} = self;
-                    const clone = template.content.cloneNode(true);
-                    const incrementButton = clone.querySelector('.increment');
-                    const decrementButton = clone.querySelector('.decrement');
-                    const resetButton = clone.querySelector('.reset');
-                    return {
-                        incrementButton,
-                        decrementButton,
-                        resetButton,
-                        clone,
-                    }
-                }
+                // createClone(self){
+                //     const {template} = self;
+                //     const clone = template.content.cloneNode(true);
+                //     const incrementButton = clone.querySelector('.increment');
+                //     const decrementButton = clone.querySelector('.decrement');
+                //     const resetButton = clone.querySelector('.reset');
+                //     return {
+                //         incrementButton,
+                //         decrementButton,
+                //         resetButton,
+                //         clone,
+                //     }
+                // }
                 
                 // Action method: Calculate status based on count
                 updateStatus(self) {
