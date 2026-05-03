@@ -6,6 +6,21 @@
 import { PropertyChangeEvent } from '../core/Events.js';
 
 /**
+ * Check if a property has a getter/setter anywhere in the prototype chain
+ */
+function hasGetterSetter(obj: any, prop: string): boolean {
+    let current = obj;
+    while (current) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, prop);
+        if (descriptor && (descriptor.get || descriptor.set)) {
+            return true;
+        }
+        current = Object.getPrototypeOf(current);
+    }
+    return false;
+}
+
+/**
  * Covertly set a property value without triggering events
  * Used for internal routing optimization
  * If the property hasn't been converted to getter/setter yet, convert it first
@@ -20,11 +35,8 @@ export async function covertlySetProperty(vm: any, prop: string, value: any): Pr
     
     const { storage, isPlainObject, weakRefProps } = metadata;
     
-    // Check if property has been converted to getter/setter
-    const descriptor = Object.getOwnPropertyDescriptor(vm, prop);
-    const isGetterSetter = descriptor && (descriptor.get || descriptor.set);
-    
-    if (!isGetterSetter) {
+    // Check if property has been converted to getter/setter (check prototype chain too)
+    if (!hasGetterSetter(vm, prop)) {
         // Property hasn't been converted yet - convert it now
         const propagator = vm.propagator;
         if (propagator) {
@@ -116,7 +128,43 @@ export async function setupPropagator(
         configurable: true
     });
 
-    // Convert each property to getter/setter
+    if (!isPlainObject) {
+        // For class instances, check if the prototype already has getter/setters
+        // from a previous instance of the same class.
+        const proto = Object.getPrototypeOf(vm);
+        const sampleProp = propertiesToMonitor.values().next().value;
+        const alreadyConverted = sampleProp && proto &&
+            (() => {
+                const d = Object.getOwnPropertyDescriptor(proto, sampleProp);
+                return d && (d.get || d.set);
+            })();
+
+        if (alreadyConverted) {
+            // Prototype getter/setters already exist — just initialize per-instance storage
+            for (const prop of propertiesToMonitor) {
+                const storageKey = `__${prop}`;
+                const useWeakRef = weakRefProps.properties.has(prop);
+                const currentValue = vm[prop];
+                const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
+                if (!(storageKey in vm)) {
+                    Object.defineProperty(vm, storageKey, {
+                        value: valueToStore,
+                        writable: true,
+                        enumerable: false,
+                        configurable: true
+                    });
+                }
+                // Delete any own data property that would shadow the prototype getter/setter
+                const ownDesc = Object.getOwnPropertyDescriptor(vm, prop);
+                if (ownDesc && !ownDesc.get && !ownDesc.set) {
+                    delete vm[prop];
+                }
+            }
+            return propagator;
+        }
+    }
+
+    // First instance (or plain object) — convert each property to getter/setter
     for (const prop of propertiesToMonitor) {
         await convertPropertyToGetterSetter(vm, prop, storage, propagator, isPlainObject, weakRefProps);
     }
@@ -154,21 +202,17 @@ async function convertPropertyToGetterSetter(
     isPlainObject: boolean,
     weakRefProps: WeakRefProps
 ): Promise<void> {
-    // Check if already converted
-    const descriptor = Object.getOwnPropertyDescriptor(vm, prop);
-    if (descriptor && (descriptor.get || descriptor.set)) {
-        // Already a getter/setter, don't override
-        return;
-    }
-
-    // Save the current value
-    const currentValue = vm[prop];
-    
     // Check if this property should use WeakRef
     const useWeakRef = weakRefProps.properties.has(prop);
-    
+
     if (isPlainObject) {
-        // For plain objects, store in the private storage object
+        // For plain objects, check own descriptor only
+        const descriptor = Object.getOwnPropertyDescriptor(vm, prop);
+        if (descriptor && (descriptor.get || descriptor.set)) {
+            return;
+        }
+
+        const currentValue = vm[prop];
         storage[prop] = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
         
         Object.defineProperty(vm, prop, {
@@ -192,7 +236,6 @@ async function convertPropertyToGetterSetter(
                 const oldValue = (stored instanceof WeakRef) ? stored.deref() : stored;
                 
                 if (oldValue !== newValue) {
-                    // Wrap in WeakRef if configured for this property
                     const valueToStore = (useWeakRef && newValue) 
                         ? new WeakRef(newValue) 
                         : newValue;
@@ -205,10 +248,14 @@ async function convertPropertyToGetterSetter(
             configurable: true
         });
     } else {
-        // For class instances, store on the instance itself using a private key
+        // For class instances: getter/setter goes on the prototype, storage on each instance
         const storageKey = `__${prop}`;
-        
-        // Initialize storage on this instance
+        const proto = Object.getPrototypeOf(vm);
+        const protoDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
+        const protoHasGetterSetter = protoDescriptor && (protoDescriptor.get || protoDescriptor.set);
+
+        // Initialize per-instance storage
+        const currentValue = vm[prop];
         const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
         if (!(storageKey in vm)) {
             Object.defineProperty(vm, storageKey, {
@@ -218,34 +265,30 @@ async function convertPropertyToGetterSetter(
                 configurable: true
             });
         }
-        
-        // Check if property already exists on prototype
-        const proto = Object.getPrototypeOf(vm);
-        const protoDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
-        
-        if (protoDescriptor && (protoDescriptor.get || protoDescriptor.set)) {
-            // Already defined on prototype by a previous instance.
-            // Delete the instance's own data property so the prototype
-            // getter/setter is no longer shadowed.
+
+        if (protoHasGetterSetter) {
+            // Prototype already has getter/setter (set up by a previous instance).
+            // Just ensure the instance's own data property doesn't shadow it.
             if (vm.hasOwnProperty(prop)) {
                 delete vm[prop];
             }
             return;
         }
-        
-        // Delete the instance property if it exists (so prototype getter/setter will be used)
+
+        // First instance for this class — define getter/setter on the prototype.
+        // Delete any own data property so the prototype getter/setter takes effect.
         if (vm.hasOwnProperty(prop)) {
             delete vm[prop];
         }
         
-        // Define getter/setter on prototype (first instance) or instance (if prototype already has it as data property)
+        // If the prototype already has a data property for this name, we can't
+        // define on the prototype (it would affect unrelated instances), so fall
+        // back to defining on the instance.
         const target = protoDescriptor ? vm : proto;
         
         Object.defineProperty(target, prop, {
             get() {
-                // 'this' refers to the actual instance, not the first instance!
                 const val = this[storageKey];
-                // Check if it's a WeakRef and deref
                 if (val instanceof WeakRef) {
                     const derefed = val.deref();
                     if (derefed === undefined && weakRefProps.logIfCollected !== 'silent') {
@@ -259,17 +302,14 @@ async function convertPropertyToGetterSetter(
                 return val;
             },
             set(newValue: any) {
-                // 'this' refers to the actual instance
                 const stored = this[storageKey];
                 const oldValue = (stored instanceof WeakRef) ? stored.deref() : stored;
                 
                 if (oldValue !== newValue) {
-                    // Wrap in WeakRef if configured for this property
                     const valueToStore = (useWeakRef && newValue) 
                         ? new WeakRef(newValue) 
                         : newValue;
                     
-                    // Ensure storage property exists on this instance
                     if (!(storageKey in this)) {
                         Object.defineProperty(this, storageKey, {
                             value: valueToStore,
@@ -281,7 +321,6 @@ async function convertPropertyToGetterSetter(
                         this[storageKey] = valueToStore;
                     }
                     
-                    // Get propagator from this instance
                     const instancePropagator = this.propagator;
                     if (instancePropagator) {
                         instancePropagator.dispatchEvent(
