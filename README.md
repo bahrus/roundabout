@@ -108,30 +108,6 @@ The core goal of roundabout is to **maximize declarative, JSON-serializable conf
 
 The roundabout configuration object should describe *what* happens, not *how*. Action methods should be pure functions: receive the view model state, return the new state to merge. Roundabout handles the wiring — when to call what, how to merge results, how to propagate changes.
 
-### The action key IS the method name
-
-For actions, the key in the configuration object is the name of the method to call. There is no need for a separate `do` property:
-
-```javascript
-// ✅ Correct: action key matches the method name
-actions: {
-    updateStatus: {
-        ifKeyIn: ['count']
-    }
-}
-// roundabout calls vm.updateStatus(self) when count changes
-
-// ❌ Avoid: using `do` to alias the method name adds confusion
-actions: {
-    calculateStatus: {
-        ifKeyIn: ['count'],
-        do: 'updateStatus'  // unnecessary indirection
-    }
-}
-```
-
-The `do` property exists primarily for **positractions**, where you're calling generic, view-model-neutral functions (like `Math.max`) that don't live on the view model as methods with matching names.
-
 ### Action methods are pure functions
 
 Action methods receive `self` (the view model) and return a partial object to merge back:
@@ -542,7 +518,7 @@ export class MoodStone extends O implements IMoodStoneActions {
 
 ## Fully configurable actions
 
-On the opposite extreme of compacts are actions, where we can fine tune exactly when and how to invoke an action.  They can pretty much do what all the other configurable settings described in this page can do, but we need to be explicit, so it is a bit more time consuming to set up.
+On the opposite extreme of compacts are actions, where we can fine tune exactly when and how to invoke an action. The action key names the method to call on the view model — `updateStatus: { ifKeyIn: ['count'] }` calls `vm.updateStatus(self)` when `count` changes. Actions can pretty much do what all the other configurable settings described in this page can do, but we need to be explicit, so it is a bit more time consuming to set up.
 
 We can specify lists of properties that are required to be truthy before invoking the action, or properties none of which should be truthy, etc.
 
