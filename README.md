@@ -478,9 +478,13 @@ For a promise-based approach, the dependency [assign-gingerly](https://github.co
 import { waitForEvent } from 'assign-gingerly/waitForEvent.js';
 
 const counter = document.querySelector('user-counter');
-await waitForEvent(counter, 'roundabout-ready');
+if (!counter.propagator) {
+    await waitForEvent(counter, 'roundabout-ready');
+}
 // counter.propagator is guaranteed to exist here
 ```
+
+> **Important:** Always check `counter.propagator` first. If roundabout already initialized, the `roundabout-ready` event has already fired and won't fire again — `waitForEvent` would hang forever without the guard.
 
 The event name is also available as a constant:
 
