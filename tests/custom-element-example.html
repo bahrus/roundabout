@@ -81,6 +81,13 @@
     
     <h2>Custom Element with Roundabout Demo</h2>
     <user-counter id="counter1" username="Alice" initial-count="5"></user-counter>
+    <script type=module>
+        await customElements.whenDefined('user-counter');
+        console.log({propagator1: counter1.propagator});
+        setTimeout(() => {
+            console.log({propagator1SecondTime: counter1.propagator});
+        }, 2000);
+    </script>
     <user-counter id="counter2" username="Bob" initial-count="15"></user-counter>
 
     <user-counter id="counter3" initial-count=25></user-counter>
