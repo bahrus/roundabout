@@ -104,6 +104,8 @@ roundabout could support deep memoization (parity), which seems like a good idea
 
 The core goal of roundabout is to **maximize declarative, JSON-serializable configuration** and **minimize imperative code**. If you find yourself writing lots of imperative glue code around roundabout, that's a signal that roundabout isn't being used to its full potential.
 
+Roundabout is also designed to be non-invasive. If the view model already provides a propagator, property getter/setters, or other members of the `RoundaboutReady` interface, roundabout uses what's there and only fills in the gaps. Libraries can implement their own reactive property system and still benefit from roundabout's declarative processors.
+
 ### What "declarative" means here
 
 The roundabout configuration object should describe *what* happens, not *how*. Action methods should be pure functions: receive the view model state, return the new state to merge. Roundabout handles the wiring — when to call what, how to merge results, how to propagate changes.
@@ -393,7 +395,9 @@ The entire `raConfig` object is JSON-serializable. The only imperative code left
 
 ## How to be roundabout ready
 
-For a class to be optimized to work most effectively with roundabouts, it should implement interface RoundaboutReady:
+For a class to be optimized to work most effectively with roundabouts, it should implement interface RoundaboutReady.
+
+Libraries and frameworks can provide their own implementations of the propagator, property getter/setters, and other RoundaboutReady members. Roundabout checks for existing implementations and only adds its own defaults where none are found. This means you can bring your own reactive property system — as long as property changes dispatch events on the propagator, roundabout's processors will work with it.
 
 ```TypeScript
 interface RoundaboutReady{
@@ -448,6 +452,46 @@ So yes, we are still "clinging" to the notion that EventTargets are useful, desp
 > Unfortunately, not only has our boilerplate code exploded, but we're stuck with a ton of bookkeeping of subscriptions, and a potential memory leak disaster if we don't properly clean everything up in the right way.
 
 So to make concern seem, perhaps, overly alarmist, we add one more "soft" requirement to make the view model be roundabout ready -- the interface should provide a disconnectedSignal abort signal, as recommended by [this proposal](https://github.com/whatwg/dom/issues/1296). 
+
+## Detecting when roundabout is ready
+
+When roundabout initializes a view model that is an `EventTarget` (such as a custom element), it dispatches a `roundabout-ready` event on the element once initialization is complete — propagator created, all processors wired up, initial evaluations run.
+
+This is useful for external parties (like element extensions or binding libraries) that need to access the propagator:
+
+```javascript
+const counter = document.querySelector('user-counter');
+
+if (counter.propagator) {
+    // Already initialized
+    usePropagator(counter.propagator);
+} else {
+    counter.addEventListener('roundabout-ready', () => {
+        usePropagator(counter.propagator);
+    }, { once: true });
+}
+```
+
+For a promise-based approach, the dependency [assign-gingerly](https://github.com/bahrus/assign-gingerly) exports a `waitForEvent` utility:
+
+```javascript
+import { waitForEvent } from 'assign-gingerly/waitForEvent.js';
+
+const counter = document.querySelector('user-counter');
+await waitForEvent(counter, 'roundabout-ready');
+// counter.propagator is guaranteed to exist here
+```
+
+The event name is also available as a constant:
+
+```javascript
+import { ROUNDABOUT_READY_EVENT } from 'roundabout-lib/core/Events.js';
+// ROUNDABOUT_READY_EVENT === 'roundabout-ready'
+```
+
+> **Note:** The event is a plain `Event`, not a `CustomEvent`. The propagator is accessible directly as `element.propagator` — no need for event detail.
+
+> **Note:** If the vm already provides its own propagator and getter/setters (i.e., a library implements the RoundaboutReady interface), roundabout respects those and skips its own setup. The `roundabout-ready` event still fires once all processors are wired up, regardless of who provided the propagator.
 
 # RoundAbout Options
 

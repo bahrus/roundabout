@@ -40,9 +40,7 @@ export class CompactDispatchEvent extends Event {
 }
 
 /**
- * Interface for CompactDispatchEvent (for type safety)
+ * Event name dispatched on the vm (if it's an EventTarget) when roundabout
+ * initialization is complete — propagator created, all processors wired up.
  */
-export interface ICompactDispatchEvent {
-    eventName: string;
-    value: any;
-}
+export const ROUNDABOUT_READY_EVENT = 'roundabout-ready';

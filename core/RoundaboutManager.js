@@ -20,6 +20,11 @@ export class RoundaboutManager {
         await this.setupPropagatorAndProperties();
         // Step 3: Process configuration options
         await this.processOptions();
+        // Step 4: Notify that roundabout is fully initialized
+        if (this.vm instanceof EventTarget) {
+            const { ROUNDABOUT_READY_EVENT } = await import('../core/Events.js');
+            this.vm.dispatchEvent(new Event(ROUNDABOUT_READY_EVENT));
+        }
         return [this.vm, this.propagator];
     }
     async setupViewModel() {
