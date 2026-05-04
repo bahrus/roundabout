@@ -29,7 +29,6 @@ export class CompactDispatchEvent extends Event {
         this.value = value;
     }
 }
-
 /**
  * Event name dispatched on the vm (if it's an EventTarget) when roundabout
  * initialization is complete — propagator created, all processors wired up.

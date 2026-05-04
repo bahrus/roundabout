@@ -4,11 +4,6 @@
  */
 import { PropertyChangeEvent } from '../core/Events.js';
 /**
- * Covertly set a property value without triggering events
- * Used for internal routing optimization
- * If the property hasn't been converted to getter/setter yet, convert it first
- */
-/**
  * Check if a property has a getter/setter anywhere in the prototype chain
  */
 function hasGetterSetter(obj, prop) {
@@ -22,6 +17,11 @@ function hasGetterSetter(obj, prop) {
     }
     return false;
 }
+/**
+ * Covertly set a property value without triggering events
+ * Used for internal routing optimization
+ * If the property hasn't been converted to getter/setter yet, convert it first
+ */
 export async function covertlySetProperty(vm, prop, value) {
     const metadata = vm.__roundaboutStorageMetadata;
     if (!metadata) {
@@ -176,6 +176,7 @@ async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPl
         Object.defineProperty(vm, prop, {
             get() {
                 const val = storage[prop];
+                // Check if it's a WeakRef and deref
                 if (val instanceof WeakRef) {
                     const derefed = val.deref();
                     if (derefed === undefined && weakRefProps.logIfCollected !== 'silent') {
