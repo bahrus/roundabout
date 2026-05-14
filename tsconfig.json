@@ -16,6 +16,7 @@
 		"roundabout.ts",
 		"roundaboutSync.ts",
 		"makeRoundaboutReady.ts",
+		"roundaboutFeature.ts",
 		"core/*.ts",
 		"processors/*.ts",
 		"utils/*.ts"

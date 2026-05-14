@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Element with RoundaboutFeature</title>
+    <!-- #include virtual="/imports.html" -->
+    <style>
+        user-counter-feature {
+            display: block;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-family: system-ui, sans-serif;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        user-counter-feature .header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        user-counter-feature .count {
+            font-size: 2em;
+            color: #0066cc;
+            margin: 10px 0;
+        }
+        
+        user-counter-feature .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        
+        user-counter-feature .status.low {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        user-counter-feature .status.medium {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        user-counter-feature .status.high {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        user-counter-feature button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        
+        user-counter-feature button.increment {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        user-counter-feature button.decrement {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        user-counter-feature button.reset {
+            background-color: #9e9e9e;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="target">Testing...</div>
+    
+    <h2>Custom Element with RoundaboutFeature Demo</h2>
+    <p>This example uses <code>RoundaboutFeature</code> with assign-gingerly's <code>assignFeatures</code> system.</p>
+    <user-counter-feature id="counter1" user-counter-username="Alice" user-counter-count="5"></user-counter-feature>
+    <user-counter-feature id="counter2" user-counter-username="Bob" user-counter-count="15"></user-counter-feature>
+    <user-counter-feature id="counter3" user-counter-count="25" user-counter-username="Bruce"></user-counter-feature>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+
+        // JSON-serializable roundabout configuration
+        const raConfig = {
+            weakRef: {
+                properties: ['incrementButton', 'decrementButton', 'resetButton'],
+                logIfCollected: 'warn'
+            },
+            actions: {
+                updateStatus: {
+                    ifKeyIn: ['count'],
+                },
+            },
+            handlers: {},
+            compacts: {
+                on_click_of_incrementButton_inc_count_by: 1,
+                on_click_of_decrementButton_inc_count_by: -1,
+                on_click_of_resetButton_set_count_to: 0,
+            },
+            assignGingerlyOptions: {
+                withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
+                aka: {
+                    q: 'querySelector'
+                }
+            },
+            merges: [
+                {
+                    ifAllOf: ['template'],
+                    assign: {
+                        clone: '?.template?.content?.cloneNode?.true'
+                    },
+                },
+                {
+                    ifAllOf: ['clone'],
+                    assign: {
+                        incrementButton: '?.clone?.q?..increment',
+                        decrementButton: '?.clone?.q?..decrement',
+                        resetButton: '?.clone?.q?..reset'
+                    }
+                },
+                {
+                    ifKeyIn: ['username'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..username?.textContent': '?.username'
+                    }
+                },
+                {
+                    ifKeyIn: ['statusClassName', 'statusMessageText'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..status?.className': '?.statusClassName',
+                        '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+                    }
+                },
+                {
+                    ifKeyIn: ['count'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..count-value?.textContent': '?.count',
+                        renderCount: 1,
+                    }
+                },
+                {
+                    ifAllOf: ['renderCount'],
+                    assign: {
+                        '?.appendChild': '?.clone',
+                        clone: '?.',
+                    }
+                }
+            ],
+        };
+
+        // withAttrs configuration for parsing element attributes
+        const withAttrs = {
+            base: 'user-counter',
+            count: '${base}-count',
+            _count: {
+                instanceOf: 'Number',
+                valIfNull: 0,
+            },
+            username: '${base}-username',
+        };
+
+        const templateHTML = String.raw`
+<div class="header">User: <span class="username"></span></div>
+<div class="count">Count: <span class="count-value"></span></div>
+<div class="status">
+    Status: <span class="status-text"></span>
+</div>
+<div class="controls">
+    <button class="increment">+1</button>
+    <button class="decrement">-1</button>
+    <button class="reset">Reset</button>
+</div>
+        `;
+
+        try {
+            const { RoundaboutFeature } = await import('../roundaboutFeature.js');
+            await import('assign-gingerly/assignFeatures.js');
+
+            const template = document.createElement('template');
+            template.innerHTML = templateHTML;
+
+            /**
+             * UserCounterFeature — uses RoundaboutFeature for reactive property management.
+             * 
+             * Key differences from the other examples:
+             * - No async connectedCallback
+             * - No direct roundabout/roundaboutSync import
+             * - Attribute parsing handled by the feature system
+             * - Feature is accessed via lazy getter (this.roundabout)
+             */
+            class UserCounterFeature extends HTMLElement {
+                static supportedFeatures = {
+                    roundabout: {
+                        fallbackSpawn: RoundaboutFeature,
+                    }
+                };
+
+                connectedCallback() {
+                    // Access the feature getter — triggers RoundaboutFeature constructor
+                    // which calls roundaboutSync internally
+                    const ra = this.roundabout;
+
+                    // Set initial state — getter/setters are already on the prototype
+                    this.status = 'low';
+                    this.statusMessage = '';
+                    this.renderCount = 0;
+                    this.template = template;
+                }
+
+                // Action method — called reactively when count changes
+                updateStatus(self) {
+                    const { count } = self;
+                    let status = 'high', statusMessage = 'High count!';
+                    if (count < 10) {
+                        status = 'low';
+                        statusMessage = 'Low count';
+                    } else if (count < 20) {
+                        status = 'medium';
+                        statusMessage = 'Medium count';
+                    }
+                    return {
+                        status,
+                        statusMessage,
+                        statusClassName: `status ${status}`,
+                        statusMessageText: statusMessage || status
+                    };
+                }
+
+                disconnectedCallback() {
+                    // Cleanup handled by AbortController
+                }
+            }
+
+            // assignFeatures calls RoundaboutFeature.onAssigned → makeRoundaboutReady
+            // This installs prototype getter/setters and pre-loads processor modules
+            await customElements.assignFeatures(UserCounterFeature, {
+                roundabout: {
+                    spawn: RoundaboutFeature,
+                    customData: {
+                        raConfig,
+                    },
+                    withAttrs,
+                }
+            });
+
+            // Now define — connectedCallback will be synchronous
+            customElements.define('user-counter-feature', UserCounterFeature);
+
+            // Wait for rendering
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            target.setAttribute('mark', 'good');
+            target.textContent = '✓ RoundaboutFeature example loaded successfully';
+
+        } catch (error) {
+            console.error(error);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>
