@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Element with roundaboutSync</title>
+    <!-- #include virtual="/imports.html" -->
+    <style>
+        user-counter-sync {
+            display: block;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-family: system-ui, sans-serif;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        user-counter-sync .header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        user-counter-sync .count {
+            font-size: 2em;
+            color: #0066cc;
+            margin: 10px 0;
+        }
+        
+        user-counter-sync .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        
+        user-counter-sync .status.low {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        user-counter-sync .status.medium {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        
+        user-counter-sync .status.high {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        user-counter-sync button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        
+        user-counter-sync button.increment {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        user-counter-sync button.decrement {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        user-counter-sync button.reset {
+            background-color: #9e9e9e;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <h2>Custom Element with roundaboutSync Demo</h2>
+    <p>This example uses <code>makeRoundaboutReady</code> + <code>roundaboutSync</code> for synchronous connectedCallback.</p>
+    <user-counter-sync id="counter1" username="Alice" initial-count="5"></user-counter-sync>
+    <user-counter-sync id="counter2" username="Bob" initial-count="15"></user-counter-sync>
+    <user-counter-sync id="counter3" initial-count="25"></user-counter-sync>
+    <script>
+        counter3.username = 'Bruce';
+    </script>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+
+        //JSON Serializable
+        const raConfig = {
+            weakRef: {
+                properties: ['incrementButton', 'decrementButton', 'resetButton'],
+                logIfCollected: 'warn'
+            },
+            actions: {
+                updateStatus: {
+                    ifKeyIn: ['count'],
+                },
+            },
+            handlers: {},
+            compacts: {
+                on_click_of_incrementButton_inc_count_by: 1,
+                on_click_of_decrementButton_inc_count_by: -1,
+                on_click_of_resetButton_set_count_to: 0,
+            },
+            assignGingerlyOptions: {
+                withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
+                aka: {
+                    q: 'querySelector'
+                }
+            },
+            merges: [
+                {
+                    ifAllOf: ['template'],
+                    assign: {
+                        clone: '?.template?.content?.cloneNode?.true'
+                    },
+                },
+                {
+                    ifAllOf: ['clone'],
+                    assign: {
+                        incrementButton:  '?.clone?.q?..increment',
+                        decrementButton: '?.clone?.q?..decrement',
+                        resetButton: "?.clone?.q?..reset"
+                    }
+                },
+                {
+                    ifKeyIn: ['username'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..username?.textContent': '?.username'
+                    }
+                },
+                {
+                    ifKeyIn: ['statusClassName', 'statusMessageText'],
+                    ifAllOf: ['clone'],
+                    assign: {
+                        '?.clone?.q?..status?.className': '?.statusClassName',
+                        '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+                    }
+                },
+                {
+                    ifKeyIn: ['count'],
+                    ifAllOf: ['clone'],
+                    assign:{
+                        '?.clone?.q?..count-value?.textContent': '?.count',
+                        renderCount: 1,
+                    }
+                },
+                {
+                    ifAllOf: ['renderCount'],
+                    assign: {
+                        '?.appendChild': '?.clone',
+                        clone: '?.',
+                    }
+                }
+            ],
+            customData: {
+                innerHTML: String.raw `
+<div class="header">User: <span class="username"></span></div>
+<div class="count">Count: <span class="count-value"></span></div>
+<div class="status">
+    Status: <span class="status-text"></span>
+</div>
+<div class="controls">
+    <button class="increment">+1</button>
+    <button class="decrement">-1</button>
+    <button class="reset">Reset</button>
+</div>
+                `,
+                withAttrs: {
+                    count: 'initial-count',
+                    _count: {
+                        instanceOf: 'Number',
+                        valIfNull: 0,
+                    },
+                    username: 'username'
+                } 
+            }
+        };
+
+        try {
+            const { roundaboutSync } = await import('../roundaboutSync.js');
+            const { makeRoundaboutReady } = await import('../makeRoundaboutReady.js');
+            const { parseWithAttrs } = await import('assign-gingerly/parseWithAttrs.js');
+            const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
+
+            const template = document.createElement('template');
+            template.innerHTML = raConfig.customData.innerHTML;
+
+            /**
+             * UserCounterSync - Same as UserCounter but using roundaboutSync
+             * 
+             * Key difference: connectedCallback is NOT async!
+             */
+            class UserCounterSync extends HTMLElement {
+                
+                // Synchronous connectedCallback - no async needed!
+                connectedCallback() {
+                    const [vm, propagator] = roundaboutSync({
+                        vm: this,
+                        ...raConfig,
+                    });
+
+                    this.status = 'low';
+                    this.statusMessage = '';
+                    this.renderCount = 0;
+                    this.template = template;
+
+                    const attrVals = parseWithAttrs(this, raConfig.customData.withAttrs, true);
+                    assignGingerly(this, attrVals);
+
+                    this._vm = vm;
+                    this._propagator = propagator;
+                }
+
+                updateStatus(self) {
+                    const { count } = self;
+                    let status = 'high', statusMessage = 'High count!';
+                    if (count < 10) {
+                        status = 'low';
+                        statusMessage = 'Low count'; 
+                    } else if (count < 20) { 
+                        status = 'medium'; 
+                        statusMessage = 'Medium count';
+                    }
+                    return { 
+                        status, 
+                        statusMessage,
+                        statusClassName: `status ${status}`,
+                        statusMessageText: statusMessage || status
+                    };
+                }
+
+                disconnectedCallback() {
+                    // Cleanup handled by AbortController
+                }
+            }
+            
+            // One-time async setup: pre-loads modules, installs prototype getter/setters
+            await makeRoundaboutReady(UserCounterSync, raConfig);
+            
+            // Now define the element - connectedCallback will be synchronous!
+            customElements.define('user-counter-sync', UserCounterSync);
+            
+            // Wait for rendering
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = '✓ roundaboutSync example loaded successfully';
+            
+        } catch (error) {
+            console.error(error);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

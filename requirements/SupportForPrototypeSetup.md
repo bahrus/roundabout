@@ -146,3 +146,55 @@ I wish I had recorded that requirement as a document.  I think we discussed it i
 
 
 
+
+---
+
+## Kiro's Response I
+
+Good, those answers simplify things. Here's the refined plan:
+
+### Design decisions locked in
+
+- `withAttrs` stays instance-level (it needs actual attribute values from the DOM element). `makeRoundaboutReady` won't touch it.
+- `roundaboutSync` silently falls back to async `roundabout()` if the prototype hasn't been prepared. No throw, no surprise. This means existing code keeps working even if someone forgets the `makeRoundaboutReady` call — they just don't get the sync benefit.
+- No `ROUNDABOUT_READY_EVENT` from `roundaboutSync`. We skip it entirely for now.
+
+### Implementation plan
+
+**File: `makeRoundaboutReady.ts`** (new, exported from index)
+
+```typescript
+export async function makeRoundaboutReady(
+    Constructor: { new(...args: any[]): any; prototype: any },
+    config: RoundaboutOptions
+): Promise<void>
+```
+
+Does:
+1. Calls `inferPropertiesToMonitor(config)` to get the property set.
+2. Pre-imports all processor modules the config needs (checks for `compacts`, `actions`, `handlers`, `hitches`, `merges`, `positractions`) and caches them on a WeakMap keyed by `Constructor`.
+3. Installs getter/setters on `Constructor.prototype` for each inferred property. This is the same logic as `convertPropertyToGetterSetter` with `isPlainObject = false`, but operating directly on the prototype without needing an instance. The getter/setter will use `this[storageKey]` pattern (instance storage), so each instance gets its own values.
+4. Tags the prototype with a Symbol (e.g., `Symbol.for('roundaboutReady')`) so `roundaboutSync` can detect it.
+
+**File: `roundaboutSync.ts`** (new, exported from index)
+
+```typescript
+export function roundaboutSync(
+    options: RoundaboutOptions
+): [vm: any, propagator: EventTarget]
+```
+
+Does:
+1. Checks for the ready Symbol on the vm's prototype. If missing, falls back to `roundabout(options)` (returns a Promise — caller would need to await, but that's their choice since they skipped `makeRoundaboutReady`).
+2. If ready: initializes per-instance storage fields, creates the propagator EventTarget, wires up property-change listeners and reactions using the cached processor modules. All synchronous.
+3. Returns `[vm, propagator]`.
+
+**One wrinkle with the fallback:** If `roundaboutSync` falls back to async, its return type changes (Promise vs tuple). Two options:
+- Option A: Always return the tuple synchronously, but if not ready, fire off the async setup in the background. The propagator works immediately but processors wire up slightly later (microtask timing). This matches your intuition that "I don't think we need to wait on that before returning the propagator."
+- Option B: Return type is `[vm, propagator] | Promise<[vm, propagator]>` and let the caller handle it.
+
+I'd lean toward **Option A** — always return `[vm, propagator]` synchronously, and if the prototype wasn't pre-prepared, do the module loading and processor wiring in a fire-and-forget async continuation. The getter/setters would still need to be installed synchronously in that path (they can be, since `convertPropertyToGetterSetter` is only async because of the import), so we'd just inline the getter/setter logic without the import.
+
+Actually — simpler thought: if we're going to inline the getter/setter logic anyway for the fallback, we could just make `roundaboutSync` always work synchronously regardless of whether `makeRoundaboutReady` was called. The only difference would be whether processor modules are cached (instant) or need to be imported (deferred via fire-and-forget). The prototype getter/setter installation doesn't actually need any imports — it's self-contained logic.
+
+**Want me to proceed with implementation, or do you want to weigh in on the fallback behavior first?**
