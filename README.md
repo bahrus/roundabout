@@ -454,10 +454,93 @@ If `roundaboutSync` is called without a prior `makeRoundaboutReady`, it still wo
 |----------|----------|
 | `roundabout()` | Simple cases, plain objects, one-off VMs, or when async `connectedCallback` is acceptable |
 | `makeRoundaboutReady` + `roundaboutSync` | Custom elements where you want synchronous lifecycle, or when multiple instances share the same config |
+| `RoundaboutFeature` + `assignFeatures` | Custom elements using assign-gingerly's feature system, attribute parsing, or dependency injection |
 
 ### Note on `roundabout-ready` event
 
 `roundaboutSync` does not dispatch the `roundabout-ready` event. If external parties need to detect when the element is initialized, check for `element.propagator` directly — it's available immediately after `roundaboutSync` returns.
+
+## Using RoundaboutFeature with `assignFeatures`
+
+For the cleanest integration with custom elements, roundabout provides a **feature class** that plugs into [assign-gingerly's](https://github.com/bahrus/assign-gingerly) `assignFeatures` dependency injection system. This eliminates the need to import roundabout directly in your element file — the feature system handles everything.
+
+```javascript
+import 'assign-gingerly/assignFeatures.js';
+import { RoundaboutFeature } from 'roundabout-lib/roundaboutFeature.js';
+
+const raConfig = {
+    actions: { updateStatus: { ifKeyIn: ['count'] } },
+    compacts: {
+        on_click_of_incrementButton_inc_count_by: 1,
+        on_click_of_decrementButton_inc_count_by: -1,
+        on_click_of_resetButton_set_count_to: 0,
+    },
+    merges: [ /* ... */ ],
+    assignGingerlyOptions: { withMethods: ['querySelector', 'appendChild'], aka: { q: 'querySelector' } }
+};
+
+class UserCounter extends HTMLElement {
+    static supportedFeatures = {
+        roundabout: { fallbackSpawn: RoundaboutFeature }
+    };
+
+    connectedCallback() {
+        this.roundabout; // access the lazy getter — triggers roundaboutSync
+        this.template = template;
+        this.status = 'low';
+        this.renderCount = 0;
+    }
+
+    updateStatus(self) {
+        const { count } = self;
+        if (count < 10) return { status: 'low', statusMessage: 'Low count' };
+        if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
+        return { status: 'high', statusMessage: 'High count!' };
+    }
+}
+
+// One-time async setup — calls makeRoundaboutReady via static onAssigned
+await customElements.assignFeatures(UserCounter, {
+    roundabout: {
+        spawn: RoundaboutFeature,
+        customData: { raConfig },
+        withAttrs: {
+            base: 'user-counter',
+            count: '${base}-count',
+            _count: { instanceOf: 'Number', valIfNull: 0 },
+            username: '${base}-username',
+        }
+    }
+});
+
+customElements.define('user-counter', UserCounter);
+```
+
+```html
+<user-counter user-counter-username="Alice" user-counter-count="5"></user-counter>
+```
+
+### How it works
+
+1. **`assignFeatures`** installs a lazy getter for `this.roundabout` on the prototype.
+2. **`RoundaboutFeature.onAssigned`** is called automatically — it runs `makeRoundaboutReady(Constructor, raConfig)` to install prototype getter/setters and pre-load processor modules.
+3. **`withAttrs`** (top-level in the feature config) is handled by assign-gingerly — it parses element attributes and passes the result as `initVals` to the feature constructor.
+4. **On first access** (`this.roundabout` in `connectedCallback`), the feature constructor runs `roundaboutSync` to wire up the propagator and processors, then applies the parsed attribute values via `assignGingerly`.
+
+### What goes where
+
+| Config key | Purpose | Who reads it |
+|-----------|---------|-------------|
+| `customData.raConfig` | Roundabout config (actions, compacts, merges, etc.) | `RoundaboutFeature` |
+| `withAttrs` (top-level) | Attribute parsing patterns | assign-gingerly's feature system |
+
+### Benefits over direct `roundaboutSync` usage
+
+- No roundabout imports needed in the element file
+- Attribute parsing handled automatically by the feature system
+- Swappable for mocks in tests (standard `assignFeatures` pattern)
+- `connectedCallback` is synchronous and minimal
+- Works with `callbackForwarding` if you want auto-spawn on connect
 
 ## How to be roundabout ready
 
