@@ -393,6 +393,72 @@ What changed:
 
 The entire `raConfig` object is JSON-serializable. The only imperative code left is `connectedCallback` (lifecycle glue) and `updateStatus` (real logic).
 
+## Synchronous Setup with `makeRoundaboutReady` + `roundaboutSync`
+
+The examples above use `async connectedCallback()` because `roundabout()` dynamically imports processor modules. This works fine, but for custom elements it means:
+
+1. `connectedCallback` must be async (or use fire-and-forget)
+2. Prototype getter/setters are installed at instance-creation time rather than class-definition time
+
+If you'd prefer a synchronous `connectedCallback`, roundabout provides a two-step alternative:
+
+```javascript
+import { makeRoundaboutReady, roundaboutSync } from 'roundabout-lib';
+
+const raConfig = { /* same config as before */ };
+
+class UserCounter extends HTMLElement {
+    // No async needed!
+    connectedCallback() {
+        const [vm, propagator] = roundaboutSync({ vm: this, ...raConfig });
+
+        this.status = 'low';
+        this.template = template;
+        // ... set initial state
+    }
+
+    updateStatus(self) {
+        const { count } = self;
+        if (count < 10) return { status: 'low', statusMessage: 'Low count' };
+        if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
+        return { status: 'high', statusMessage: 'High count!' };
+    }
+}
+
+// One-time async setup — call before customElements.define()
+await makeRoundaboutReady(UserCounter, raConfig);
+customElements.define('user-counter', UserCounter);
+```
+
+### How it works
+
+**`makeRoundaboutReady(Constructor, config)`** does the async work once, up front:
+- Pre-imports all processor modules the config requires (compacts, actions, merges, etc.)
+- Infers which properties need monitoring from the config
+- Installs getter/setters on `Constructor.prototype`
+- Caches everything so `roundaboutSync` can use it without any imports
+
+**`roundaboutSync(options)`** then runs fully synchronously per instance:
+- Initializes per-instance storage
+- Creates the propagator EventTarget
+- Wires up property-change listeners and processors using the cached modules
+- Returns `[vm, propagator]` immediately
+
+### Fallback behavior
+
+If `roundaboutSync` is called without a prior `makeRoundaboutReady`, it still works — getter/setters are installed inline (synchronous), and processor module loading is deferred to a microtask. The return value is always `[vm, propagator]` synchronously either way. This means you can use `roundaboutSync` as a drop-in replacement for `roundabout` without the `makeRoundaboutReady` call — you just won't get the benefit of pre-loaded processors on the first tick.
+
+### When to use which
+
+| Approach | Use when |
+|----------|----------|
+| `roundabout()` | Simple cases, plain objects, one-off VMs, or when async `connectedCallback` is acceptable |
+| `makeRoundaboutReady` + `roundaboutSync` | Custom elements where you want synchronous lifecycle, or when multiple instances share the same config |
+
+### Note on `roundabout-ready` event
+
+`roundaboutSync` does not dispatch the `roundabout-ready` event. If external parties need to detect when the element is initialized, check for `element.propagator` directly — it's available immediately after `roundaboutSync` returns.
+
 ## How to be roundabout ready
 
 For a class to be optimized to work most effectively with roundabouts, it should implement interface RoundaboutReady.
