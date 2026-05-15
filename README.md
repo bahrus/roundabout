@@ -1294,11 +1294,17 @@ compacts: {
 **Example:**
 ```javascript
 propagator.addEventListener('status-changed', (e) => {
-    console.log('Status changed to:', e.detail);
+    console.log('Status changed to:', e.value);
 });
 
-vm.status = 'active';  // → 'status-changed' event is dispatched
+vm.status = 'active';  // → 'status-changed' event is dispatched on the propagator
 ```
+
+**RHS value:** The event name to dispatch. If the RHS is a non-empty string, that string is used as the event name. If omitted or falsy, the source property name is used as the event name.
+
+**Event type:** The dispatched event is a `CompactDispatchEvent` with properties:
+- `eventName` — the event name string
+- `value` — the current value of the source property
 
 ---
 
