@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yields - atIndex</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    
+    <script type="module">
+        const target = document.getElementById('target');
+        
+        try {
+            const { roundabout } = await import('../../index.js');
+            
+            const [vm, propagator] = await roundabout({
+                vm: {
+                    items: ['apple', 'banana', 'cherry', 'date'],
+                    idx: 0,
+                    item: undefined,
+                },
+                yields: {
+                    item: { from: 'items', atIndex: 'idx' }
+                }
+            });
+            
+            // Wait for initial reaction
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Test 1: Initial state — idx is 0, item should be 'apple'
+            if (vm.item !== 'apple') {
+                throw new Error(`Expected item='apple' at idx=0, got '${vm.item}'`);
+            }
+            
+            // Test 2: Change index
+            vm.idx = 2;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.item !== 'cherry') {
+                throw new Error(`Expected item='cherry' at idx=2, got '${vm.item}'`);
+            }
+            
+            // Test 3: Change items array
+            vm.items = ['x', 'y', 'z'];
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.item !== 'z') {
+                throw new Error(`Expected item='z' at idx=2 after items change, got '${vm.item}'`);
+            }
+            
+            // Test 4: Out of bounds → undefined
+            vm.idx = 10;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.item !== undefined) {
+                throw new Error(`Expected item=undefined at idx=10 (out of bounds), got '${vm.item}'`);
+            }
+            
+            // Test 5: Negative index → undefined (no Python-style)
+            vm.idx = -1;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.item !== undefined) {
+                throw new Error(`Expected item=undefined at idx=-1, got '${vm.item}'`);
+            }
+            
+            // Test 6: Back to valid index
+            vm.idx = 1;
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.item !== 'y') {
+                throw new Error(`Expected item='y' at idx=1, got '${vm.item}'`);
+            }
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = '✓ All yields atIndex tests passed';
+            
+        } catch (error) {
+            console.error(error);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

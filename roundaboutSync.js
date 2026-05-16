@@ -212,6 +212,9 @@ function processOptionsSync(vm, options, modules, handlePropertyChange, abortCon
     if (options.merges && modules.processMerges) {
         modules.processMerges(vm, options.merges, onChange);
     }
+    if (options.yields && modules.processYields) {
+        modules.processYields(vm, options.yields, onChange);
+    }
     // Handle infractions if provided
     if (infractions) {
         import('./processors/infractions.js').then(({ processInfractions }) => {
@@ -250,6 +253,11 @@ async function deferProcessorWiring(vm, options, handlePropertyChange, abortCont
     if (options.merges) {
         promises.push(import('./processors/merges.js').then(({ processMerges }) => {
             processMerges(vm, options.merges, onChange);
+        }));
+    }
+    if (options.yields) {
+        promises.push(import('./processors/yields.js').then(({ processYields }) => {
+            processYields(vm, options.yields, onChange);
         }));
     }
     if (infractions) {
@@ -341,6 +349,15 @@ function inferPropertiesToMonitorSync(options) {
                 addArr(merge.ifAtLeastOneOf);
             if (merge.ifNotAllOf)
                 addArr(merge.ifNotAllOf);
+        }
+    }
+    if (options.yields) {
+        for (const [targetProp, config] of Object.entries(options.yields)) {
+            props.add(targetProp);
+            if (config.from)
+                props.add(config.from);
+            if (config.atIndex)
+                props.add(config.atIndex);
         }
     }
     return props;

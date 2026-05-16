@@ -163,3 +163,78 @@ Can you give one more go at seeing if you can come up with a better term?
 3.  One way only
 
 4.  Yes, we will definitely want to expand the use cases to include key matching, so we don't want to box ourself in and prevent that. with the implementation or configuration semantics of scenario I.
+
+---
+
+## Kiro's Response I
+
+Good points. Let me take another run at naming.
+
+### The constraint
+
+We need a term that:
+- Fits the roundabout/driving metaphor (ideally)
+- Covers "pick one from many" (single selection by index)
+- Can naturally extend to "pick several from many" (multi-selection)
+- Can extend to "pick by key" (not just by index)
+- Doesn't sound forced
+
+### Naming candidates
+
+**`yields`** — A roundabout yield sign means "give way to what's already in the circle." In our context: the list *yields* a specific item based on a selector. "The items yield an item at idx." Multi-select: "items yield selectedItems at indices." Key lookup: "items yield item atKey id."
+
+```javascript
+yields: {
+    item: { from: 'items', atIndex: 'idx' }
+}
+// Future multi-select:
+yields: {
+    selectedItems: { from: 'items', atIndices: 'selectedIndices' }
+}
+// Future key lookup:
+yields: {
+    item: { from: 'items', atKey: 'selectedId', keyProp: 'id' }
+}
+```
+
+**`picks`** — Simple, clear, verb-based. "Pick item from items at idx." Extends naturally: "pick selectedItems from items at indices." Not strongly roundabout-themed but very readable.
+
+```javascript
+picks: {
+    item: { from: 'items', atIndex: 'idx' }
+}
+```
+
+**`navigations`** — Navigating a roundabout to reach a destination. "Navigate to item from items at idx." A bit verbose but fits the metaphor.
+
+**`routes`** — "Route from items at idx to item." Roundabout-adjacent (routing traffic). But might conflict with URL routing concepts.
+
+**`merges`** — Already taken.
+
+### My recommendation: `yields`
+
+It reads naturally ("items yields item at index"), extends cleanly to multi-select and key-based lookup, and has a legitimate roundabout connection (yield signs are fundamental to roundabout traffic flow). It's also short and doesn't clash with any JS keyword in a confusing way (generator `yield` is different enough context).
+
+### On hitches
+
+I hear you that hitches was advertised as "coordinate three members." But the current implementation is specifically about EventTarget + event name + target property — it's wired around `addEventListener`. Putting array-index derivation under the same umbrella would mean hitches has two completely different internal mechanisms sharing a name. That said, if you'd prefer to keep it under hitches with a different sentence pattern, something like:
+
+```javascript
+hitches: {
+    when_idx_selects_from_items_set_item: 0
+}
+```
+
+...that could work syntactically, but it's a stretch of the "sentence" pattern and the implementation would still be a separate code path internally.
+
+### Decisions so far
+
+- One-way only (array + index → item)
+- Out-of-bounds → `undefined`
+- Config shape must accommodate future `atKey` / `atIndices` expansion
+
+What's your preference on the name?
+
+## Human Response II
+
+Yields is a great idea because it is used with iterating, so doesn't feel forced.

@@ -450,6 +450,15 @@ export function inferPropertiesToMonitor(options: any): Set<string> {
         }
     }
     
+    // Infer from yields
+    if (options.yields) {
+        for (const [targetProp, config] of Object.entries(options.yields) as any[]) {
+            props.add(targetProp);
+            if (config.from) props.add(config.from);
+            if (config.atIndex) props.add(config.atIndex);
+        }
+    }
+    
     return props;
 }
 

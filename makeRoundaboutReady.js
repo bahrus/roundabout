@@ -40,6 +40,9 @@ export async function makeRoundaboutReady(Constructor, config) {
     if (config.positractions) {
         importPromises.push(import('./processors/positractions.js').then(m => { modules.processPositractions = m.processPositractions; }));
     }
+    if (config.yields) {
+        importPromises.push(import('./processors/yields.js').then(m => { modules.processYields = m.processYields; }));
+    }
     await Promise.all(importPromises);
     // 3. Install getter/setters on the prototype
     const proto = Constructor.prototype;

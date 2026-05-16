@@ -1574,6 +1574,75 @@ Hitches handle edge cases gracefully:
 
 ---
 
+## Yields Reference
+
+Yields derive a value from a collection using an index (or in the future, a key). When the source collection or the selector property changes, the target property is automatically recomputed.
+
+### Scenario I: Single Selection by Index
+
+Select one item from an array by index. When either the array or the index changes, the target is updated.
+
+```javascript
+const [vm] = await roundabout({
+    vm: {
+        items: ['apple', 'banana', 'cherry'],
+        idx: 0,
+        item: undefined,
+    },
+    yields: {
+        item: { from: 'items', atIndex: 'idx' }
+    }
+});
+
+// item is immediately computed as 'apple' (items[0])
+
+vm.idx = 2;
+// → vm.item becomes 'cherry'
+
+vm.items = ['x', 'y', 'z'];
+// → vm.item becomes 'z' (items[2])
+
+vm.idx = 10;
+// → vm.item becomes undefined (out of bounds)
+```
+
+### Configuration
+
+```typescript
+yields: {
+    [targetProp: string]: {
+        from: string;       // Source array property name
+        atIndex?: string;   // Index property name
+        // Future: atKey, atIndices, keyProp, etc.
+    }
+}
+```
+
+### Behavior
+
+- **Initial computation**: The target is computed immediately when yields are processed (no need to trigger a change first).
+- **One-way**: Changing the target property directly does NOT update the index. The flow is strictly `array + index → item`.
+- **Out of bounds**: If the index is negative, non-numeric, or >= array length, the target is set to `undefined`.
+- **Null/undefined source**: If the source array is not an array, the target is set to `undefined`.
+
+### Future Expansion
+
+The config shape is designed to accommodate additional selection modes:
+
+```javascript
+// Key-based lookup (future)
+yields: {
+    selectedUser: { from: 'users', atKey: 'selectedId', keyProp: 'id' }
+}
+
+// Multi-select by indices (future)
+yields: {
+    selectedItems: { from: 'items', atIndices: 'selectedIndices' }
+}
+```
+
+---
+
 ## Merges Reference
 
 Merges are fully JSON-serializable reactive rules. When their conditions are met, they resolve RHS path strings against the view model and assign the results into the view model using `assignFrom` from assign-gingerly. No methods or code required.

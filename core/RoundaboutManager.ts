@@ -181,6 +181,10 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         if (this.options.merges) {
             await this.processMerges();
         }
+
+        if (this.options.yields) {
+            await this.processYields();
+        }
     }
 
     private async processCompacts(): Promise<void> {
@@ -249,6 +253,16 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
         const cleanup = await processMerges(
             this.vm,
             this.options.merges!,
+            (key: string) => this.handlePropertyChange(key, this.vm[key as keyof typeof this.vm])
+        );
+        this.cleanupFunctions.push(cleanup);
+    }
+
+    private async processYields(): Promise<void> {
+        const { processYields } = await import('../processors/yields.js');
+        const cleanup = await processYields(
+            this.vm,
+            this.options.yields!,
             (key: string) => this.handlePropertyChange(key, this.vm[key as keyof typeof this.vm])
         );
         this.cleanupFunctions.push(cleanup);

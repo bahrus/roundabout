@@ -20,6 +20,7 @@ export interface RoundaboutReadyCache {
         processHitches?: typeof import('./processors/hitches.js').processHitches;
         processMerges?: typeof import('./processors/merges.js').processMerges;
         processPositractions?: typeof import('./processors/positractions.js').processPositractions;
+        processYields?: typeof import('./processors/yields.js').processYields;
     };
     weakRefConfig?: any;
 }
@@ -77,6 +78,11 @@ export async function makeRoundaboutReady<TProps = any, TActions = TProps, ETPro
     if (config.positractions) {
         importPromises.push(
             import('./processors/positractions.js').then(m => { modules.processPositractions = m.processPositractions; })
+        );
+    }
+    if ((config as any).yields) {
+        importPromises.push(
+            import('./processors/yields.js').then(m => { (modules as any).processYields = m.processYields; })
         );
     }
 
