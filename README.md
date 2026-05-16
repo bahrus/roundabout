@@ -1611,8 +1611,11 @@ vm.idx = 10;
 ```typescript
 yields: {
     [targetProp: string]: {
-        from: string;       // Source array property name
-        atIndex?: string;   // Index property name
+        from: string;              // Source array property name
+        atIndex?: string;          // Index property name
+        outOfBounds?: 'undefined'  // What to do when index is out of bounds:
+                    | 'clamp';     //   'undefined' (default): set target to undefined
+                                   //   'clamp': reset index to 0, select first item
         // Future: atKey, atIndices, keyProp, etc.
     }
 }
@@ -1622,8 +1625,9 @@ yields: {
 
 - **Initial computation**: The target is computed immediately when yields are processed (no need to trigger a change first).
 - **One-way**: Changing the target property directly does NOT update the index. The flow is strictly `array + index → item`.
-- **Out of bounds**: If the index is negative, non-numeric, or >= array length, the target is set to `undefined`.
-- **Null/undefined source**: If the source array is not an array, the target is set to `undefined`.
+- **Out of bounds (default)**: If the index is negative, non-numeric, or >= array length, the target is set to `undefined`.
+- **Out of bounds (clamp)**: If the index is out of bounds, it's reset to 0 and the first item is selected. Useful for UI scenarios where "no selection" isn't valid.
+- **Null/undefined source**: If the source array is not an array or is empty, the target is set to `undefined`.
 
 ### Future Expansion
 

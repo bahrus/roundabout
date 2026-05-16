@@ -28,12 +28,34 @@ export async function processYields(vm, yields, onChange) {
         }
         if (atIndex) {
             // Scenario I: single selection by index
+            const outOfBounds = config.outOfBounds || 'undefined';
             const recompute = async () => {
                 const arr = vmAny[from];
-                const idx = vmAny[atIndex];
-                const newValue = (Array.isArray(arr) && typeof idx === 'number' && idx >= 0 && idx < arr.length)
-                    ? arr[idx]
-                    : undefined;
+                let idx = vmAny[atIndex];
+                if (!Array.isArray(arr) || arr.length === 0) {
+                    if (vmAny[targetProp] !== undefined) {
+                        vmAny[targetProp] = undefined;
+                    }
+                    return;
+                }
+                const inBounds = typeof idx === 'number' && idx >= 0 && idx < arr.length;
+                if (!inBounds) {
+                    if (outOfBounds === 'clamp') {
+                        // Reset index to 0 and select first item
+                        vmAny[atIndex] = 0;
+                        // The index change will re-trigger this reaction,
+                        // so just return — the next call will set the target.
+                        return;
+                    }
+                    else {
+                        // Default: set target to undefined
+                        if (vmAny[targetProp] !== undefined) {
+                            vmAny[targetProp] = undefined;
+                        }
+                        return;
+                    }
+                }
+                const newValue = arr[idx];
                 if (vmAny[targetProp] !== newValue) {
                     vmAny[targetProp] = newValue;
                 }

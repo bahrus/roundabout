@@ -74,6 +74,36 @@
                 throw new Error(`Expected item='y' at idx=1, got '${vm.item}'`);
             }
             
+            // --- Test outOfBounds: 'clamp' mode ---
+            const [vm2] = await roundabout({
+                vm: {
+                    options: ['red', 'green', 'blue'],
+                    selectedIdx: 1,
+                    selected: undefined,
+                },
+                yields: {
+                    selected: { from: 'options', atIndex: 'selectedIdx', outOfBounds: 'clamp' }
+                }
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Test 7: Initial state with clamp
+            if (vm2.selected !== 'green') {
+                throw new Error(`Clamp: Expected selected='green' at idx=1, got '${vm2.selected}'`);
+            }
+            
+            // Test 8: Out of bounds with clamp → resets idx to 0, selects first item
+            vm2.selectedIdx = 99;
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            if (vm2.selectedIdx !== 0) {
+                throw new Error(`Clamp: Expected selectedIdx=0 after out-of-bounds, got ${vm2.selectedIdx}`);
+            }
+            if (vm2.selected !== 'red') {
+                throw new Error(`Clamp: Expected selected='red' after clamp, got '${vm2.selected}'`);
+            }
+            
             target.setAttribute('mark', 'good');
             target.textContent = '✓ All yields atIndex tests passed';
             
