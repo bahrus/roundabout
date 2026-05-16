@@ -38,6 +38,13 @@ export async function processCompacts<TProps = any, TActions = TProps>(
             };
 
             reactions.get(parsed.sourceProp)!.push(reactionFn);
+
+            // Immediately check if the property already has a value
+            // (e.g., set via a feature lazy getter before roundabout wired up)
+            const currentValue = vmAny[parsed.sourceProp];
+            if (currentValue) {
+                setupEventCompactListener(vmAny, parsed, listenerState);
+            }
         } else {
             const reactionFn = async (value: any) => {
                 await executeCompact(vm, parsed, value);
