@@ -3,7 +3,7 @@
 ---
 ## Human Ask
 
-Do you forsee any issues with making two or more calls to makeRoundaboutReady on the same prototype with different RAConfigs, and corresponding calls to roundaboutSync on each instance, passing in the same corresponding RAConfig (assuming the developer is carefull about avoiding namespace conflicts between them)?
+Do you foresee any issues with making two or more calls to makeRoundaboutReady on the same prototype with different RAConfigs, and corresponding calls to roundaboutSync on each instance, passing in the same corresponding RAConfig (assuming the developer is careful about avoiding namespace conflicts between them)?
 
 ---
 
@@ -81,7 +81,7 @@ Want me to implement these fixes, or is this more of a "good to know for later" 
 
 ## Human response I
 
-Thanks for the analysis.  This is likely to be a need, based on some half-baked requirements.  Let me solidify those requirements, and see if there are workaounds before committing to this.
+Thanks for the analysis.  This is likely to be a need, based on some half-baked requirements.  Let me solidify those requirements, and see if there are workarounds before committing to this.
 
 On a scale of 0 - 10, how much complexity does this add?  Does your intuition seem like it would have use cases to justify it?
 
