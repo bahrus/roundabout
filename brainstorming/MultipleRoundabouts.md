@@ -76,3 +76,55 @@ const cache = caches.find(c => c.config === options);  // or deep-equal, or by a
 And give each `roundaboutSync` call its own `AbortController`.
 
 Want me to implement these fixes, or is this more of a "good to know for later" situation?
+
+---
+
+## Human response I
+
+Thanks for the analysis.  This is likely to be a need, based on some half-baked requirements.  Let me solidify those requirements, and see if there are workaounds before committing to this.
+
+On a scale of 0 - 10, how much complexity does this add?  Does your intuition seem like it would have use cases to justify it?
+
+---
+
+## Kiro's Response I
+
+### Complexity: 3/10
+
+The actual code change is small:
+- Change `proto[ROUNDABOUT_READY]` from a single cache to an array of caches (~5 lines in `makeRoundaboutReady`)
+- Have `roundaboutSync` find the matching cache by config reference (~3 lines)
+- Give each `roundaboutSync` call its own `AbortController` (already mostly the case — just remove the `if (!vm.RAController)` guard)
+
+No architectural changes, no new concepts, no API changes for single-roundabout users. The existing behavior is a degenerate case of "array with one entry."
+
+### Use cases — yes, I think so
+
+The pattern maps naturally to **composition of independent behaviors** on a single element:
+
+1. **Feature composition** — A custom element has a `timeTicker` feature (with its own reactive config: duration, disabled, tick events) AND a separate "presentation" roundabout (with its own config: items, idx, item, DOM rendering merges). Each feature author defines their own `raConfig` independently. This is essentially what you're already doing with `RoundaboutFeature` + `assignFeatures` — if two features both use `RoundaboutFeature`, you'd hit this.
+
+2. **Enhancement stacking** — Multiple enhancements on the same element, each bringing their own reactive wiring. Enhancement A manages form validation state, Enhancement B manages animation state. Neither knows about the other.
+
+3. **Separation of concerns** — Keep "data logic" (items, selection, filtering) in one config and "UI wiring" (DOM updates, class toggling, event dispatching) in another. Easier to test each in isolation.
+
+### The workaround (if you don't want to commit yet)
+
+Merge the configs into one before calling `makeRoundaboutReady`:
+
+```javascript
+const mergedConfig = {
+    ...configA,
+    ...configB,
+    compacts: { ...configA.compacts, ...configB.compacts },
+    merges: [...(configA.merges || []), ...(configB.merges || [])],
+    // etc.
+};
+await makeRoundaboutReady(MyElement, mergedConfig);
+```
+
+This works but defeats the purpose of independent composition — the configs need to know about each other at merge time.
+
+### My intuition
+
+Worth supporting eventually, but not urgent. The workaround (merging configs) covers the immediate need. When you have the solidified requirements, the fix is small enough to do in an hour.
