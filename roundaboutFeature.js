@@ -1,4 +1,6 @@
 import { roundaboutSync } from './roundaboutSync.js';
+import { getFeatureInfoSuggestions } from 'assign-gingerly/assignFeatures.js';
+export const id = Symbol.for('roundabout-lib-feature');
 /**
  * RoundaboutFeature — a custom element feature that integrates roundabout
  * with assign-gingerly's `assignFeatures` system.
@@ -38,6 +40,23 @@ export class RoundaboutFeature {
      */
     static async onAssigned(ctr, featureConfig) {
         const { makeRoundaboutReady } = await import('./makeRoundaboutReady.js');
+        // Read suggestions from other features
+        const suggestions = getFeatureInfoSuggestions(id, ctr);
+        for (const suggestion of suggestions) {
+            if (suggestion.customData) {
+                featureConfig.customData = {
+                    ...featureConfig.customData,
+                    ...suggestion.customData
+                };
+            }
+            if (suggestion.withAttrs) {
+                // Merge withAttrs (this needs thought — how to merge AttrPatterns?)
+                featureConfig.withAttrs = {
+                    ...featureConfig.withAttrs,
+                    ...suggestion.withAttrs
+                };
+            }
+        }
         const { raConfig } = featureConfig.customData;
         await makeRoundaboutReady(ctr, raConfig);
         // If withAttrs has sourceOfTruth entries, add them to static observedAttributes
