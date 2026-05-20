@@ -1,5 +1,6 @@
 import { roundaboutSync } from './roundaboutSync.js';
 import { getFeatureInfoSuggestions } from 'assign-gingerly/assignFeatures.js';
+import { assignGingerly } from 'assign-gingerly/assignGingerly.js';
 export const id = Symbol.for('roundabout-lib-feature');
 /**
  * RoundaboutFeature — a custom element feature that integrates roundabout
@@ -44,10 +45,7 @@ export class RoundaboutFeature {
         const suggestions = getFeatureInfoSuggestions(id, ctr);
         for (const suggestion of suggestions) {
             if (suggestion.customData) {
-                featureConfig.customData = {
-                    ...featureConfig.customData,
-                    ...suggestion.customData
-                };
+                assignGingerly(featureConfig.customData, suggestion.customData);
             }
             if (suggestion.withAttrs) {
                 // Merge withAttrs (this needs thought — how to merge AttrPatterns?)
