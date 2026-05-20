@@ -23,7 +23,7 @@
     "chrome": "npx playwright cr http://localhost:8000"
   },
   "dependencies": {
-    "assign-gingerly": "0.0.45"
+    "assign-gingerly": "0.0.47"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",
