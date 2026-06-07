@@ -54,6 +54,7 @@ interface ActionState {
     monitoredProps: Set<string>;
     lastConditionsMet: boolean;
     pendingTimeout?: any;
+    evaluationLock?: Promise<void>;
 }
 
 function checkForCompactConflicts(vm: any, actions: Actions): void {
@@ -149,52 +150,66 @@ async function evaluateAndExecuteAction<TProps, TActions>(
     if (vmAny.__roundaboutDisableActions) {
         return;
     }
-    
-    const config = state.config;
-    
-    // Clear any pending timeout
-    if (state.pendingTimeout) {
-        clearTimeout(state.pendingTimeout);
-        state.pendingTimeout = undefined;
+
+    // Serialize evaluations of the same action to prevent duplicate firings
+    // when multiple monitored properties change in the same microtask.
+    while (state.evaluationLock) {
+        await state.evaluationLock;
     }
-    
-    // Check if conditions are met
-    const conditionsMet = evaluateConditions(vm, config);
-    
-    if (config.debug) {
-        console.log(`[Action: ${actionKey}] Conditions evaluated:`, {
-            conditionsMet,
-            changedProperty,
-            lastConditionsMet: state.lastConditionsMet
-        });
-    }
-    
-    // Determine if we should execute
-    let shouldExecute = false;
-    
-    if (config.ifKeyIn) {
-        // For ifKeyIn, execute every time a monitored property changes
-        shouldExecute = conditionsMet;
-    } else {
-        // For other conditions, execute only on transition to "all conditions met"
-        shouldExecute = conditionsMet && !state.lastConditionsMet;
-    }
-    
-    state.lastConditionsMet = conditionsMet;
-    
-    if (!shouldExecute) {
-        return;
-    }
-    
-    // Apply delay if specified
-    const delay = config.delay || 0;
-    
-    if (delay > 0) {
-        state.pendingTimeout = setTimeout(async () => {
+
+    let resolve!: () => void;
+    state.evaluationLock = new Promise<void>(r => { resolve = r; });
+
+    try {
+        const config = state.config;
+        
+        // Clear any pending timeout
+        if (state.pendingTimeout) {
+            clearTimeout(state.pendingTimeout);
+            state.pendingTimeout = undefined;
+        }
+        
+        // Check if conditions are met
+        const conditionsMet = evaluateConditions(vm, config);
+        
+        if (config.debug) {
+            console.log(`[Action: ${actionKey}] Conditions evaluated:`, {
+                conditionsMet,
+                changedProperty,
+                lastConditionsMet: state.lastConditionsMet
+            });
+        }
+        
+        // Determine if we should execute
+        let shouldExecute = false;
+        
+        if (config.ifKeyIn) {
+            // For ifKeyIn, execute every time a monitored property changes
+            shouldExecute = conditionsMet;
+        } else {
+            // For other conditions, execute only on transition to "all conditions met"
+            shouldExecute = conditionsMet && !state.lastConditionsMet;
+        }
+        
+        state.lastConditionsMet = conditionsMet;
+        
+        if (!shouldExecute) {
+            return;
+        }
+        
+        // Apply delay if specified
+        const delay = config.delay || 0;
+        
+        if (delay > 0) {
+            state.pendingTimeout = setTimeout(async () => {
+                await executeAction(vm, actionKey, config, changedProperty);
+            }, delay);
+        } else {
             await executeAction(vm, actionKey, config, changedProperty);
-        }, delay);
-    } else {
-        await executeAction(vm, actionKey, config, changedProperty);
+        }
+    } finally {
+        state.evaluationLock = undefined;
+        resolve();
     }
 }
 
