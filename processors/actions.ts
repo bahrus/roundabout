@@ -184,8 +184,21 @@ async function evaluateAndExecuteAction<TProps, TActions>(
         let shouldExecute = false;
         
         if (config.ifKeyIn) {
-            // For ifKeyIn, execute every time a monitored property changes
-            shouldExecute = conditionsMet;
+            const ifKeyInArr = Array.isArray(config.ifKeyIn) ? config.ifKeyIn : [config.ifKeyIn];
+            const changedIsInKeyIn = ifKeyInArr.includes(changedProperty);
+            
+            // When ifKeyIn is combined with other conditions (ifAllOf, ifNoneOf, etc.),
+            // only fire when the changed property is in the ifKeyIn list.
+            // When ifKeyIn is used alone, fire on any monitored property change.
+            const hasOtherConditions = config.ifAllOf || config.ifNoneOf || config.ifEquals 
+                || config.ifAtLeastOneOf || config.ifNotAllOf;
+            
+            if (hasOtherConditions) {
+                shouldExecute = conditionsMet && changedIsInKeyIn;
+            } else {
+                // Standalone ifKeyIn: fire every time a monitored property changes
+                shouldExecute = conditionsMet;
+            }
         } else {
             // For other conditions, execute only on transition to "all conditions met"
             shouldExecute = conditionsMet && !state.lastConditionsMet;
