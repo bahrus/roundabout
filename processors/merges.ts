@@ -213,7 +213,7 @@ async function executeMerge<TProps>(
             Object.assign(options, vmAny.__roundaboutAssignGingerlyOptions);
         }
 
-        assignFrom(vm, config.assign, options);
+        await assignFrom(vm, config.assign, options);
     } catch (error) {
         console.error(`Error executing merge:`, error);
     }
