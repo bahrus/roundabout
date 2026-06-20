@@ -4,7 +4,16 @@ export async function roundabout(options, infractions) {
     const returnObj = await manager.initialize();
     const initVals = options.initialPropVals || options.defaultPropVals;
     if (initVals) {
-        (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignGingerlyOptions);
+        if (options.protocols) {
+            const { assignFrom } = await import('assign-gingerly/assignFrom.js');
+            await assignFrom(returnObj[0], initVals, {
+                from: returnObj[0],
+                ...options.assignGingerlyOptions,
+                protocols: options.protocols
+            });
+        } else {
+            (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignGingerlyOptions);
+        }
     }
     return returnObj;
 }
