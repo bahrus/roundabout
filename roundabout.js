@@ -11,7 +11,8 @@ export async function roundabout(options, infractions) {
                 ...options.assignGingerlyOptions,
                 protocols: options.protocols
             });
-        } else {
+        }
+        else {
             (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignGingerlyOptions);
         }
     }
