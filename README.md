@@ -1744,6 +1744,76 @@ merges: [
 - Merges use the same condition evaluation as actions (`ifKeyIn` fires on every change, others fire on transition)
 - The `delay` and `debug` options from `LogicOp` are supported
 
+### Type-safe path authoring with `paths.js`
+
+Writing `?.clone?.q?..status?.className` strings by hand is error-prone. The [assign-gingerly `paths.js`](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/paths-dx.md) module provides utilities for type-safe, IDE-friendly authoring of merge configs.
+
+```typescript
+import { paths, set, doAssign, smoothOver } from 'assign-gingerly/paths.js';
+
+interface MyVM extends HTMLElement {
+    clone: DocumentFragment;
+    username: string;
+    count: number;
+    statusClassName: string;
+    template: HTMLTemplateElement;
+}
+
+const aka = { q: 'querySelector' };
+const withMethods = ['querySelector', 'appendChild', 'cloneNode'];
+const $ = paths<MyVM>({ aka, withMethods });
+```
+
+**Property access** produces path strings:
+```typescript
+$.username.path   // '?.username'
+$.clone.path      // '?.clone'
+```
+
+**Method calls** use real syntax — aliases are applied automatically:
+```typescript
+$.clone.querySelector('.status').className.path
+// '?.clone?.q?..status?.className'
+
+$.template.content.cloneNode(true).path
+// '?.template?.content?.cloneNode?.true'
+```
+
+**`set(lhs).to(rhs)`** produces assignment pairs:
+```typescript
+set($.clone.querySelector('.username').textContent).to($.username)
+// { '?.clone?.q?..username?.textContent': '?.username' }
+```
+
+**`doAssign(...pairs)`** merges multiple assignments into `{ assign: {...} }`:
+```typescript
+{
+    ifKeyIn: ['statusClassName'],
+    ifAllOf: ['clone'],
+    ...doAssign(
+        set($.clone.querySelector('.status').className).to($.statusClassName),
+        set($.clone.querySelector('.status-text').textContent).to($.statusMessageText),
+    )
+}
+```
+
+**`smoothOver(value)`** recursively converts all proxies in a structure to path strings:
+```typescript
+merges: smoothOver([
+    { ifAllOf: ['template'], assign: { clone: $.template.content.cloneNode(true) } },
+    { ifAllOf: ['clone'], assign: { incrementButton: $.clone.querySelector('.increment') } },
+])
+```
+
+Benefits:
+- Full IDE autocomplete on VM property names
+- Compile-time errors for typos (`$.usernam` → TS error)
+- Method call syntax reads like real code
+- Aliases applied automatically (`querySelector` → `q` in output)
+- Output is the same JSON as hand-written configs
+
+See the [full documentation](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/paths-dx.md) for additional utilities like `sp` (split-join templates) and `md` (microdata templates).
+
 ---
 
 ## Infractions Reference
