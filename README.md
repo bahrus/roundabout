@@ -1129,13 +1129,6 @@ if(destObj.myProp2 === undefined){
 }
 ```
 
-## The class hierarchy food chain
-
-I don't know about you, but when there's life or death struggle between a virus vs a human being, I for one root for the human.  A parent risking their life for their child is much more aesthetic than the reverse.   Weird, I know.
-
-assignGingerly follows a similar pattern when merging an object into a property.
-
-If the property value already exists, and if the object being merged in is a superclass of the target property, then rather doing an Object.assign from the superclass into the subclass, the reverse is done.  The existing property value gets merged into the new value, and the new value replaces the old value.
 
 
 
