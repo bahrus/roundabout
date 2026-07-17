@@ -1737,6 +1737,149 @@ merges: [
 - Merges use the same condition evaluation as actions (`ifKeyIn` fires on every change, others fire on transition)
 - The `delay` and `debug` options from `LogicOp` are supported
 
+### Advanced: Handlers, Template Looping, and Inferred Assignments
+
+Merges use `assignFrom` under the hood, which supports powerful handler patterns beyond simple property assignment. These enable fully declarative template rendering, conditional display, and data distribution — all JSON-serializable, no imperative code needed.
+
+#### Template Looping with `builtIns.manageTemplateList`
+
+Render a list from an array by cloning a template for each item, with keyed reconciliation for efficient updates:
+
+```html
+<template id="user-row">
+    <tr itemscope="UserRow">
+        <td itemprop="name"></td>
+        <td itemprop="email"></td>
+    </tr>
+</template>
+<table><tbody id="user-list"></tbody></table>
+```
+
+```javascript
+merges: [
+    {
+        ifKeyIn: ['users'],
+        assign: {
+            '?.userListElement =>': {
+                do: 'builtIns.manageTemplateList',
+                resolve: {
+                    forEach: '?.users',
+                    instantiate: 'globalThis://user-row',
+                },
+                fromEachItem: {
+                    assignToFragment: { '?.querySelector?.tr?.ish': '?.' },
+                    withOptions: {
+                        withMethods: ['querySelector'],
+                        inferredAssignments: { byItemprop: true }
+                    },
+                    resolve: { key: '?.id' }
+                }
+            }
+        }
+    }
+]
+```
+
+Key features:
+- **Keyed reconciliation** — items matched by `key` field; new items are cloned, removed items are hidden/deleted, existing items are updated in place (no re-cloning)
+- **Batched DOM insertion** — all clones are assembled in a DocumentFragment and inserted in one operation
+- **`waitForSettled`** — optionally waits for async work (itemscope managers, enhancements) before inserting into the live DOM
+- **`yieldEvery`** — yields to the browser event loop periodically for very large lists (prevents jank)
+- **Performance** — benchmarks show 2-23x faster than vanilla JS for large list creation, competitive with framework rendering
+
+#### Inferred Assignments with `inferredAssignments`
+
+Instead of writing explicit paths for every DOM element, let the system distribute values based on structural conventions:
+
+```javascript
+merges: [
+    {
+        ifKeyIn: ['name', 'email', 'joinDate'],
+        assign: {
+            // The ish assignment triggers inferredAssignments
+            '?.querySelector?.[itemscope]?.ish': '?.'
+        }
+    }
+]
+```
+
+Or use `inferredAssignments` in the `assignGingerlyOptions`:
+
+```html
+<div itemscope>
+    <span itemprop="name"></span>
+    <input itemprop="email" type="email">
+    <time itemprop="joinDate"></time>
+</div>
+```
+
+The inferencer automatically determines the correct property for each element type:
+- `<input type="text">` → `value`
+- `<input type="checkbox">` → `checked`
+- `<time>` → `dateTime`
+- `<a>` → `href`
+- Elements with `itemscope` → `ish` (routes to itemscope manager)
+- Other elements → `textContent`
+
+**Scope perimeter** is respected — elements inside nested `[itemscope]` boundaries are excluded (donut-hole scoping).
+
+#### Looped Substitution with `where_x_in`
+
+Expand a single pattern into multiple assignments using template variables:
+
+```javascript
+merges: [
+    {
+        ifKeyIn: ['firstName', 'lastName'],
+        assign: {
+            '?.[name="${x}"]': '?.${x}'
+        },
+        // resolves to two assignments: [name="firstName"] and [name="lastName"]
+    }
+]
+// with assignGingerlyOptions: { where_x_in: ['firstName', 'lastName'] }
+```
+
+Multiple variables produce a cartesian product — `where_x_in` × `where_y_in` × `where_z_in`.
+
+#### Conditional Display with `builtIns.lazyLoad`
+
+Conditionally render templates based on view model state:
+
+```javascript
+merges: [
+    {
+        ifKeyIn: ['activeView'],
+        assign: {
+            '?.viewContainer =>': {
+                do: 'builtIns.lazyLoad',
+                resolve: {
+                    if: '?.isSettingsVisible',
+                    instantiate: 'globalThis://settingsTemplate'
+                }
+            }
+        }
+    }
+]
+```
+
+#### What this means for roundabout
+
+Since merges call `assignFrom` with the full power of its handler system, a roundabout merge can declaratively express:
+
+- **Template-driven list rendering** from an array property — re-renders reactively when the array changes
+- **Automatic DOM binding** via microdata (`itemprop`) conventions — no manual path strings per element
+- **Conditional display** — show/hide template content based on VM state
+- **Form binding** via `where_x_in` loop expansion — bind multiple form fields with one pattern
+- **Nested composition** — itemscope managers receive data via `ish`, enabling recursive component patterns
+
+All of this is JSON-serializable and reactive — roundabout evaluates conditions, `assignFrom` handles the rendering. No imperative code, no virtual DOM, no framework runtime.
+
+For full documentation see:
+- [assignFrom reference](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/assignFrom.md)
+- [manageTemplateList](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/manage-template-list.md)
+- [inferred assignments](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/inferred-assignments.md)
+
 ### Type-safe path authoring with `paths.js`
 
 Writing `?.clone?.q?..status?.className` strings by hand is error-prone. The [assign-gingerly `paths.js`](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/paths-dx.md) module provides utilities for type-safe, IDE-friendly authoring of merge configs.
