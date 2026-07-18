@@ -862,7 +862,7 @@ const raConfig = {
     infractions: [calcAgePlus10, 'doSearch']
 }
 
-export class MoodStone implements IMoodStoneActions {
+export class MoodStone extends HTMLElement implements IMoodStoneActions {
     async connectedCallback() {
         await roundabout({ vm: this, ...raConfig });
     }
@@ -886,7 +886,7 @@ const raConfig = {
 }
 const calcAgePlus10: PropsToPartialProps<IMoodStoneProps> = ({age}: IMoodStoneProps) => ({agePlus10: age + 10});
 
-export class MoodStone extends O implements IMoodStoneActions {
+export class MoodStone extends HTMLElement implements IMoodStoneActions {
     calcAgePlus10 = calcAgePlus10;
     
     async connectedCallback() {
@@ -900,10 +900,12 @@ export class MoodStone extends O implements IMoodStoneActions {
 We can go in the opposite direction, away from a disciplined approach of making things JSON serializable, but in the direction of "locality of behavior", and inline the infraction:
 
 ```Typescript
-
-export class MoodStone extends O implements IMoodStoneActions {
-    static override config: OConfig<IMoodStoneProps> = {
-        infractions: [({age}: IMoodStoneProps) => ({agePlus10: age + 10})]
+const raConfig = {
+    infractions: [({age}: IMoodStoneProps) => ({agePlus10: age + 10})]
+};
+export class MoodStone extends HTMLElement implements IMoodStoneActions {
+    async connectedCallback() {
+        await roundabout({ vm: this, ...raConfig });
     }
 }
 ```
@@ -926,17 +928,19 @@ export interface IMoodStoneProps{
     heightInInches: number,
     maxOfAgeAndHeightInInches: number,
 }
-export class MoodStone extends O implements IMoodStoneActions {
-    static override config: OConfig<IMoodStoneProps, IMoodStoneActions> = {
-        positractions: [
-            {
-                ifKeyIn: ['age', 'heightInInches'],
-                do: Math.max,
-                assignTo: ['maxOfAgeAndHeightInInches']
-            }
-        ]
 
-        
+const raConfig = {
+    positractions: [
+        {
+            ifKeyIn: ['age', 'heightInInches'],
+            do: Math.max,
+            assignTo: ['maxOfAgeAndHeightInInches']
+        }
+    ]
+}
+export class MoodStone extends HTML implements IMoodStoneActions {
+    async connectedCallback() {
+        await roundabout({ vm: this, ...raConfig });
     }
 }
 
@@ -959,19 +963,21 @@ export interface IMoodStoneProps{
     heightInInches: number,
     maxOfAgeAndHeightInInches: number,
 }
-export class MoodStone extends O implements IMoodStoneActions {
-    max = Math.max;
-    static override config: OConfig<IMoodStoneProps, IMoodStoneActions> = {
-        positractions: [
-            {
-                ifKeyIn: ['age', 'heightInInches'],
-                do: 'max',
-                //pass: ['age', 'heightInInches'],
-                assignTo: ['maxOfAgeAndHeightInInches']
-            }
-        ]
 
-        
+const raConfig = {
+    positractions: [
+        {
+            ifKeyIn: ['age', 'heightInInches'],
+            do: 'max',
+            //pass: ['age', 'heightInInches'],
+            assignTo: ['maxOfAgeAndHeightInInches']
+        }
+    ]
+}
+export class MoodStone extends HTMLElement implements IMoodStoneActions {
+    max = Math.max;
+    async connectedCallback() {
+        await roundabout({ vm: this, ...raConfig });
     }
 }
 
