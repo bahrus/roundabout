@@ -680,32 +680,35 @@ interface MoodStoneActions{
 "compacts" look as follows:
 
 ```TypeScript
-export class MoodStone extends O implements IMoodStoneActions {
-    static override config: OConfig<MoodStoneProps, MoodStoneActions> = {
-        ...
-        compacts:{
-            //rhs indicates delay if any
-            when_age_changes_call_throwBirthdayParty: 0
-            //rhs indicates delay if any
-            negate_isHappy_to_isNotHappy: 0,
-            // if data is falsy, set dataLength to the rhs value
-            pass_length_of_data_to_dataLength: 0,
-            //rhs indicates delay if any before echoing the value
-            echo_dataLength_to_someOtherLength: 20, 
-            
-            //rhs is a property that specifies how long to wait
-            echo_inputCount_to_inputCountEcho_after: debounceInterval,  
-            
-            
-            // the number on the rhs is the delay to apply, if any
-            when_age_changes_toggle_ageChangedToggle: 0,
-            //rhs specifies amount to increment, which could even be negative!
-            when_age_changes_inc_ageChangeCount_by: 1,
-
-            
-            
-        }
+const raConfig = {
+    ...
+    compacts:{
+        //rhs indicates delay if any
+        when_age_changes_call_throwBirthdayParty: 0
+        //rhs indicates delay if any
+        negate_isHappy_to_isNotHappy: 0,
+        // if data is falsy, set dataLength to the rhs value
+        pass_length_of_data_to_dataLength: 0,
+        //rhs indicates delay if any before echoing the value
+        echo_dataLength_to_someOtherLength: 20, 
+        
+        //rhs is a property that specifies how long to wait
+        echo_inputCount_to_inputCountEcho_after: debounceInterval,  
+        
+        
+        // the number on the rhs is the delay to apply, if any
+        when_age_changes_toggle_ageChangedToggle: 0,
+        //rhs specifies amount to increment, which could even be negative!
+        when_age_changes_inc_ageChangeCount_by: 1,
     }
+};
+
+export class MoodStone extends O implements IMoodStoneActions {
+    async connectedCallback() {
+        const [vm, propagator] = await roundabout({ vm: this, ...raConfig });
+        ...
+    }
+    
     
 }
 ```
