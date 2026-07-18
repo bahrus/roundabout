@@ -858,15 +858,19 @@ Infractions is a portmanteau of "inferred reactions", where we "parse" the left 
 ```Typescript
 const calcAgePlus10: PropsToPartialProps<IMoodStoneProps> = ({age}: IMoodStoneProps) => ({agePlus10: age + 10});
 
-export class MoodStone extends O implements IMoodStoneActions {
+const raConfig = {
+    infractions: [calcAgePlus10, 'doSearch']
+}
+
+export class MoodStone implements IMoodStoneActions {
+    async connectedCallback() {
+        await roundabout({ vm: this, ...raConfig });
+    }
     doSearch({searchString}){
         return {
             foundIt: true,
             hereItIs: element
         }
-    }
-    static override config: OConfig<IMoodStoneProps> = {
-        infractions: [calcAgePlus10, 'doSearch']
     }
 }
 ```
@@ -876,12 +880,17 @@ export class MoodStone extends O implements IMoodStoneActions {
 It was briefly mentioned before that one of the goals of roundabouts is that they accept as much JSON serializable information as possible.  The config property above isn't serializable as it currently stands.  So to make it JSON serializable, we must burden the developer with an extra step:
 
 ```Typescript
+
+const raConfig = {
+    infractions: ['calcAgePlus10']
+}
 const calcAgePlus10: PropsToPartialProps<IMoodStoneProps> = ({age}: IMoodStoneProps) => ({agePlus10: age + 10});
 
 export class MoodStone extends O implements IMoodStoneActions {
     calcAgePlus10 = calcAgePlus10;
-    static override config: OConfig<IMoodStoneProps> = {
-        infractions: ['calcAgePlus10']
+    
+    async connectedCallback() {
+        await roundabout({ vm: this, ...raConfig });
     }
 }
 ```
