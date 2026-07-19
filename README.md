@@ -1788,7 +1788,7 @@ merges: [
                     assignToFragment: { '?.querySelector?.tr?.ish': '?.' },
                     withOptions: {
                         withMethods: ['querySelector'],
-                        inferredAssignments: { byItemprop: true }
+                        infer: { byItemprop: true }
                     },
                     resolve: { key: '?.id' }
                 }
@@ -1805,7 +1805,7 @@ Key features:
 - **`yieldEvery`** — yields to the browser event loop periodically for very large lists (prevents jank)
 - **Performance** — benchmarks show 2-23x faster than vanilla JS for large list creation, competitive with framework rendering
 
-#### Inferred Assignments with `inferredAssignments`
+#### Inferred Assignments with `infer`
 
 Instead of writing explicit paths for every DOM element, let the system distribute values based on structural conventions:
 
@@ -1814,14 +1814,13 @@ merges: [
     {
         ifKeyIn: ['name', 'email', 'joinDate'],
         assign: {
-            // The ish assignment triggers inferredAssignments
             '?.querySelector?.[itemscope]?.ish': '?.'
         }
     }
 ]
 ```
 
-Or use `inferredAssignments` in the `assignGingerlyOptions`:
+Or use `infer` in the `assignGingerlyOptions`:
 
 ```html
 <div itemscope>
@@ -1860,7 +1859,38 @@ merges: [
 
 Multiple variables produce a cartesian product — `where_x_in` × `where_y_in` × `where_z_in`.
 
-#### Conditional Display with `builtIns.lazyLoad`
+#### Cached Element Resolution with `#[x]` and `withIds`
+
+For reactive merges that repeatedly update the same DOM elements, `querySelector` on every cycle is wasteful. The `#[x]` syntax provides cached element references via `WeakRef` — near-zero-cost repeated access (~10ns) vs expensive queries (~3,000-17,000ns at scale):
+
+```javascript
+merges: [
+    {
+        ifKeyIn: ['greeting'],
+        assign: {
+            '#[main]?.textContent': '?.greeting'
+        }
+    },
+    {
+        ifKeyIn: ['showContent'],
+        assign: {
+            '#[main] =>': {
+                do: 'builtIns.lazyLoad',
+                resolve: { if: '?.showContent', instantiate: 'globalThis://myTemplate' }
+            }
+        }
+    }
+]
+// with assignGingerlyOptions: { withIds: { main: { qry: '.mainView' } } }
+```
+
+On first encounter, the element is found via `querySelector`, auto-assigned an ID if it doesn't have one, and cached as a `WeakRef`. Subsequent merge cycles resolve in ~10ns via the cache. GC-safe — if the element is collected, it falls back to `getElementById`.
+
+Two forms:
+- `withIds: { x: { qry: '.myClass' } }` — find by selector, auto-assign ID, cache
+- `withIds: { x: 'existingId' }` — element already has an ID, just cache it
+
+#### Conditional display with `builtIns.lazyLoad`
 
 Conditionally render templates based on view model state:
 
@@ -1888,6 +1918,7 @@ Since merges call `assignFrom` with the full power of its handler system, a roun
 - **Template-driven list rendering** from an array property — re-renders reactively when the array changes
 - **Automatic DOM binding** via microdata (`itemprop`) conventions — no manual path strings per element
 - **Conditional display** — show/hide template content based on VM state
+- **Cached element references** via `#[x]` + `withIds` — near-zero-cost repeated DOM access in reactive cycles
 - **Form binding** via `where_x_in` loop expansion — bind multiple form fields with one pattern
 - **Nested composition** — itemscope managers receive data via `ish`, enabling recursive component patterns
 
@@ -1897,6 +1928,7 @@ For full documentation see:
 - [assignFrom reference](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/assignFrom.md)
 - [manageTemplateList](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/manage-template-list.md)
 - [inferred assignments](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/inferred-assignments.md)
+- [paths DX utilities](https://github.com/bahrus/assign-gingerly/blob/baseline/docs/paths-dx.md)
 
 ### Type-safe path authoring with `paths.js`
 
