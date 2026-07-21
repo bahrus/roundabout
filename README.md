@@ -309,48 +309,117 @@ const raConfig = {
         logIfCollected: 'warn'
     },
     actions: {
-        // The only action left — contains branching logic that can't be JSON-serialized
-        updateStatus: { ifKeyIn: ['count'] },
+        // updateStatus: {
+        //     ifKeyIn: ['count'],
+        // },
     },
+    handlers: {},
     compacts: {
-        // Button clicks directly modify count — no methods needed
         on_click_of_incrementButton_inc_count_by: 1,
         on_click_of_decrementButton_inc_count_by: -1,
         on_click_of_resetButton_set_count_to: 0,
     },
+    assignGingerlyOptions: {
+        withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
+        aka: {
+            q: 'querySelector'
+        }
+    },
     merges: [
-        // Clone the template when it becomes available
-        { ifAllOf: ['template'], assign: { clone: '?.template?.content?.cloneNode?.true' } },
-        // Extract button references from the clone
+        {
+            ifKeyIn: ['count'],
+            assign: {
+                '?. =>': {
+                    do: 'builtIns.rangeSelector',
+                    get: {
+                        value: '?.count',
+                        when: [
+                            {'<': 10, merge: {status: 'low', statusMessage: 'Low count'}},
+                            {'<': 20, merge: {status: 'medium', statusMessage: 'Medium count'}},
+                            {merge: {status: 'high', statusMessage: 'High count!'}}
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            ifKeyIn: ['status'],
+            ifAllOf: ['status'],
+            assign: {
+                '?.statusClassName =>': {
+                    do: 'builtIns.join',
+                    get: {
+                        separator: ' ',
+                        value: ['status', '?.status']
+                    }
+
+                } 
+            }
+        },
+        {
+            ifKeyIn: ['statusMessage', 'status'],
+            assign: {
+                '?.statusMessageText ?=': ['?.statusMessage', '?.statusMessage', '?.status']
+            }
+        },
+        {
+            ifAllOf: ['template'],
+            assign: {
+                clone: '?.template?.content?.cloneNode?.true'
+            },
+        },
         {
             ifAllOf: ['clone'],
             assign: {
                 incrementButton: '?.clone?.q?..increment',
                 decrementButton: '?.clone?.q?..decrement',
-                resetButton: '?.clone?.q?..reset',
+                resetButton: '?.clone?.q?..reset'
             }
         },
-        // Push username into the DOM
-        { ifKeyIn: ['username'], ifAllOf: ['clone'], assign: { '?.clone?.q?..username?.textContent': '?.username' } },
-        // Push status into the DOM
         {
-            ifKeyIn: ['statusClassName', 'statusMessageText'],
+            ifKeyIn: ['username'],
             ifAllOf: ['clone'],
             assign: {
-                '?.clone?.q?..status?.className': '?.statusClassName',
+                '?.clone?.q?..username?.textContent': '?.username'
+            }
+        },
+        {
+            ifKeyIn: ['statusMessageText'],
+            ifAllOf: ['clone', 'statusMessageText'],
+            assign: {
                 '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
             }
         },
-        // Push count into the DOM and trigger render
-        { ifKeyIn: ['count'], ifAllOf: ['clone'], assign: { '?.clone?.q?..count-value?.textContent': '?.count', renderCount: 1 } },
-        // Append clone to the element
-        { ifAllOf: ['renderCount'], assign: { '?.appendChild': '?.clone', clone: '?.' } },
+        {
+            ifKeyIn: ['statusClassName'],
+            ifAllOf: ['clone', 'statusClassName'],
+            assign: {
+                '?.clone?.q?..status?.classList': '?.statusClassName',
+            }
+        },
+        {
+            ifKeyIn: ['count'],
+            ifAllOf: ['clone'],
+            assign: {
+                '?.clone?.q?..count-value?.textContent': '?.count',
+                renderCount: 1,
+            }
+        },
+        {
+            ifAllOf: ['renderCount'],
+            assign: {
+                '?.appendChild': '?.clone',
+                clone: '?.',
+            }
+        }
     ],
-    assignGingerlyOptions: {
-        withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
-        aka: { q: 'querySelector' }
+    defaultPropVals: {
+        status: 'low',
+        statusMessage: '',
+        renderCount: 0,
     },
 };
+
 ```
 
 The class shrinks to just lifecycle glue and the one method with real logic:
@@ -359,28 +428,10 @@ The class shrinks to just lifecycle glue and the one method with real logic:
 class UserCounter extends HTMLElement {
     async connectedCallback() {
         const [vm] = await roundabout({ vm: this, ...raConfig });
-        this.count = 0;
-        this.username = 'User';
-        this.status = 'low';
-        this.statusMessage = '';
-        this.renderCount = 0;
         this.template = template;
         if (this.hasAttribute('username')) this.username = this.getAttribute('username');
         if (this.hasAttribute('initial-count'))
             this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
-    }
-
-    // The only method — branching logic that can't be expressed declaratively
-    updateStatus(self) {
-        const { count } = self;
-        let status = 'high', statusMessage = 'High count!';
-        if (count < 10) { status = 'low'; statusMessage = 'Low count'; }
-        else if (count < 20) { status = 'medium'; statusMessage = 'Medium count'; }
-        return {
-            status, statusMessage,
-            statusClassName: `status ${status}`,
-            statusMessageText: statusMessage || status,
-        };
     }
 }
 ```
@@ -487,16 +538,9 @@ class UserCounter extends HTMLElement {
     connectedCallback() {
         this.roundabout; // access the lazy getter — triggers roundaboutSync
         this.template = template;
-        this.status = 'low';
-        this.renderCount = 0;
-    }
 
-    updateStatus(self) {
-        const { count } = self;
-        if (count < 10) return { status: 'low', statusMessage: 'Low count' };
-        if (count < 20) return { status: 'medium', statusMessage: 'Medium count' };
-        return { status: 'high', statusMessage: 'High count!' };
-    }
+
+
 }
 
 // One-time async setup — calls makeRoundaboutReady via static onAssigned
