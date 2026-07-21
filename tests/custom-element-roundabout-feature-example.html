@@ -85,6 +85,20 @@
     <user-counter-feature id="counter3" user-counter-count="25" user-counter-username="Bruce"></user-counter-feature>
     
     <script type="module">
+        const templateHTML = String.raw`
+<div class="header">User: <span class="username"></span></div>
+<div class="count">Count: <span class="count-value"></span></div>
+<div class="status">
+    Status: <span class="status-text"></span>
+</div>
+<div class="controls">
+    <button class="increment">+1</button>
+    <button class="decrement">-1</button>
+    <button class="reset">Reset</button>
+</div>
+        `;
+        const template = document.createElement('template');
+        template.innerHTML = templateHTML;
         const target = document.getElementById('target');
 
         // JSON-serializable roundabout configuration
@@ -211,104 +225,66 @@
             username: '${base}-username',
         };
 
-        const templateHTML = String.raw`
-<div class="header">User: <span class="username"></span></div>
-<div class="count">Count: <span class="count-value"></span></div>
-<div class="status">
-    Status: <span class="status-text"></span>
-</div>
-<div class="controls">
-    <button class="increment">+1</button>
-    <button class="decrement">-1</button>
-    <button class="reset">Reset</button>
-</div>
-        `;
 
-        try {
-            const { RoundaboutFeature } = await import('../roundaboutFeature.js');
-            await import('assign-gingerly/assignFeatures.js');
 
-            const template = document.createElement('template');
-            template.innerHTML = templateHTML;
+        const { RoundaboutFeature } = await import('../roundaboutFeature.js');
+        await import('assign-gingerly/assignFeatures.js');
 
-            /**
-             * UserCounterFeature — uses RoundaboutFeature for reactive property management.
-             * 
-             * Key differences from the other examples:
-             * - No async connectedCallback
-             * - No direct roundabout/roundaboutSync import
-             * - Attribute parsing handled by the feature system
-             * - Feature is accessed via lazy getter (this.roundabout)
-             */
-            class UserCounterFeature extends HTMLElement {
-                static supportedFeatures = {
-                    roundabout: {
-                        fallbackSpawn: RoundaboutFeature,
-                    }
-                };
 
-                connectedCallback() {
-                    // Access the feature getter — triggers RoundaboutFeature constructor
-                    // which calls roundaboutSync internally
-                    const ra = this.roundabout;
 
-                    // Set initial state — getter/setters are already on the prototype
-                    this.status = 'low';
-                    this.statusMessage = '';
-                    this.renderCount = 0;
-                    this.template = template;
+        /**
+         * UserCounterFeature — uses RoundaboutFeature for reactive property management.
+         * 
+         * Key differences from the other examples:
+         * - No async connectedCallback
+         * - No direct roundabout/roundaboutSync import
+         * - Attribute parsing handled by the feature system
+         * - Feature is accessed via lazy getter (this.roundabout)
+         */
+        class UserCounterFeature extends HTMLElement {
+            static supportedFeatures = {
+                roundabout: {
+                    fallbackSpawn: RoundaboutFeature,
                 }
+            };
 
-                // // Action method — called reactively when count changes
-                // updateStatus(self) {
-                //     const { count } = self;
-                //     let status = 'high', statusMessage = 'High count!';
-                //     if (count < 10) {
-                //         status = 'low';
-                //         statusMessage = 'Low count';
-                //     } else if (count < 20) {
-                //         status = 'medium';
-                //         statusMessage = 'Medium count';
-                //     }
-                //     return {
-                //         status,
-                //         statusMessage,
-                //         statusClassName: `status ${status}`,
-                //         statusMessageText: statusMessage || status
-                //     };
-                // }
+            connectedCallback() {
+                // Access the feature getter — triggers RoundaboutFeature constructor
+                // which calls roundaboutSync internally
+                const ra = this.roundabout;
 
-                disconnectedCallback() {
-                    // Cleanup handled by AbortController
-                }
+                // Set initial state — getter/setters are already on the prototype
+                this.status = 'low';
+                this.statusMessage = '';
+                this.renderCount = 0;
+                this.template = template;
             }
 
-            // assignFeatures calls RoundaboutFeature.onAssigned → makeRoundaboutReady
-            // This installs prototype getter/setters and pre-loads processor modules
-            await customElements.assignFeatures(UserCounterFeature, {
-                roundabout: {
-                    spawn: RoundaboutFeature,
-                    customData: {
-                        raConfig,
-                    },
-                    withAttrs,
-                }
-            });
 
-            // Now define — connectedCallback will be synchronous
-            customElements.define('user-counter-feature', UserCounterFeature);
-
-            // Wait for rendering
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            target.setAttribute('mark', 'good');
-            target.textContent = '✓ RoundaboutFeature example loaded successfully';
-
-        } catch (error) {
-            console.error(error);
-            target.setAttribute('mark', 'bad');
-            target.textContent = `✗ Error: ${error.message}`;
         }
+
+        // assignFeatures calls RoundaboutFeature.onAssigned → makeRoundaboutReady
+        // This installs prototype getter/setters and pre-loads processor modules
+        await customElements.assignFeatures(UserCounterFeature, {
+            roundabout: {
+                spawn: RoundaboutFeature,
+                customData: {
+                    raConfig,
+                },
+                withAttrs,
+            }
+        });
+
+        // Now define — connectedCallback will be synchronous
+        customElements.define('user-counter-feature', UserCounterFeature);
+
+        // Wait for rendering
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        target.setAttribute('mark', 'good');
+        target.textContent = '✓ RoundaboutFeature example loaded successfully';
+
+
     </script>
 </body>
 </html>
