@@ -49,7 +49,7 @@ As we will see below, roundabout can JSON serialize much of the logic, making pa
 
 In general, signals involve "busier" syntax that seems to be less declarative, especially less JSON serializable.  On the plus side, the developer can be far less disciplined.  
 
-Roundabouts encourage small, loosely coupled functions, which are easy to test (but may suffer from more bouncing around), and the code is far more "clean", in the sense that there are no api calls required to worry about.  Just focus in what output you want merged into the view model, and leave it at that.  
+Roundabouts encourage small, loosely coupled functions, which are easy to test (but may suffer from more bouncing around), and the code is far more "clean", in the sense that there are no api calls required to worry about.  Just focus on what output you want merged into the view model, and leave it at that.  
 
 It requires more disciplined patience from the developer, but it allows for a large solution space of code-free declarative solutions. 
 
