@@ -212,6 +212,11 @@
                     }
                 }
             ],
+            defaultPropVals: {
+                status: 'low',
+                statusMessage: '',
+                renderCount: 0,
+            },
         };
 
         // withAttrs configuration for parsing element attributes
@@ -253,10 +258,7 @@
                 // which calls roundaboutSync internally
                 const ra = this.roundabout;
 
-                // Set initial state — getter/setters are already on the prototype
-                this.status = 'low';
-                this.statusMessage = '';
-                this.renderCount = 0;
+                // template is a runtime object, can't be in defaultPropVals
                 this.template = template;
             }
 
