@@ -133,6 +133,7 @@
                     assign: {
                         '?.statusClassName =>': {
                             do: 'builtIns.join',
+                            separator: ' ',
                             get: {
                                 separator: ' ',
                                 value: ['status', '?.status']
@@ -177,9 +178,9 @@
                 },
                 {
                     ifKeyIn: ['statusClassName'],
-                    ifAllOf: ['clone'],
+                    ifAllOf: ['clone', 'statusClassName'],
                     assign: {
-                        //'?.clone?.q?..status?.className': '?.statusClassName',
+                        '?.clone?.q?..status?.classList': '?.statusClassName',
                     }
                 },
                 {
