@@ -1903,7 +1903,7 @@ merges: [
 
 Multiple variables produce a cartesian product — `where_x_in` × `where_y_in` × `where_z_in`.
 
-#### Cached Element Resolution with `#[x]` and `withIds`
+#### Cached Element Resolution with `#[x]` and `pin`
 
 For reactive merges that repeatedly update the same DOM elements, `querySelector` on every cycle is wasteful. The `#[x]` syntax provides cached element references via `WeakRef` — near-zero-cost repeated access (~10ns) vs expensive queries (~3,000-17,000ns at scale):
 
@@ -1925,14 +1925,14 @@ merges: [
         }
     }
 ]
-// with assignOptions: { withIds: { main: { qry: '.mainView' } } }
+// with assignOptions: { pin: { main: { qry: '.mainView' } } }
 ```
 
 On first encounter, the element is found via `querySelector`, auto-assigned an ID if it doesn't have one, and cached as a `WeakRef`. Subsequent merge cycles resolve in ~10ns via the cache. GC-safe — if the element is collected, it falls back to `getElementById`.
 
 Two forms:
-- `withIds: { x: { qry: '.myClass' } }` — find by selector, auto-assign ID, cache
-- `withIds: { x: 'existingId' }` — element already has an ID, just cache it
+- `pin: { x: { qry: '.myClass' } }` — find by selector, auto-assign ID, cache
+- `pin: { x: 'existingId' }` — element already has an ID, just cache it
 
 #### Conditional display with `builtIns.lazyLoad`
 
@@ -1962,7 +1962,7 @@ Since merges call `assignFrom` with the full power of its handler system, a roun
 - **Template-driven list rendering** from an array property — re-renders reactively when the array changes
 - **Automatic DOM binding** via microdata (`itemprop`) conventions — no manual path strings per element
 - **Conditional display** — show/hide template content based on VM state
-- **Cached element references** via `#[x]` + `withIds` — near-zero-cost repeated DOM access in reactive cycles
+- **Cached element references** via `#[x]` + `pin` — near-zero-cost repeated DOM access in reactive cycles
 - **Form binding** via `where_x_in` loop expansion — bind multiple form fields with one pattern
 - **Nested composition** — itemscope managers receive data via `ish`, enabling recursive component patterns
 
