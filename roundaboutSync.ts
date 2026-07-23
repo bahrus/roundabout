@@ -42,10 +42,10 @@ export function roundaboutSync<TProps = any, TActions = TProps, ETProps = TProps
     const abortController = new AbortController();
     setupRoundaboutReadyInterface(vm, abortController);
 
-    // Store assignGingerlyOptions on VM so processors can access them
-    if (options.assignGingerlyOptions) {
-        Object.defineProperty(vm, '__roundaboutAssignGingerlyOptions', {
-            value: options.assignGingerlyOptions,
+    // Store assignOptions on VM so processors can access them
+    if (options.assignOptions) {
+        Object.defineProperty(vm, '__roundaboutAssignOptions', {
+            value: options.assignOptions,
             enumerable: false,
             writable: false,
             configurable: true,
@@ -82,7 +82,7 @@ export function roundaboutSync<TProps = any, TActions = TProps, ETProps = TProps
         if (initVals) {
             // Fire-and-forget: assignGingerly needs an import but values can be set after
             import('assign-gingerly/assignGingerly.js').then(({ assignGingerly }) => {
-                assignGingerly(vm, initVals, options.assignGingerlyOptions as any);
+                assignGingerly(vm, initVals, options.assignOptions as any);
             });
         }
     } else {
@@ -337,7 +337,7 @@ async function deferProcessorWiring(
     if (initVals) {
         promises.push(
             import('assign-gingerly/assignGingerly.js').then(({ assignGingerly }) => {
-                assignGingerly(vm, initVals, options.assignGingerlyOptions as any);
+                assignGingerly(vm, initVals, options.assignOptions as any);
             })
         );
     }

@@ -94,7 +94,7 @@ async function setupHandler<ETProps, TActions>(
                 // Merge result back if it's an object
                 if (result && typeof result === 'object' && !Array.isArray(result)) {
                     const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-                    await assignGingerly(vm, result, vmAny.__roundaboutAssignGingerlyOptions);
+                    await assignGingerly(vm, result, vmAny.__roundaboutAssignOptions);
                 }
             } catch (error) {
                 console.error(`Error executing handler method "${parsed.methodName}":`, error);

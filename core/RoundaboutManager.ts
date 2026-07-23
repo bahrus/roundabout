@@ -77,10 +77,10 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
 
         this.vm = vm as TProps & TActions & RoundaboutReady;
 
-        // Store assignGingerlyOptions on VM so processors can access them
-        if (this.options.assignGingerlyOptions) {
-            Object.defineProperty(vm, '__roundaboutAssignGingerlyOptions', {
-                value: this.options.assignGingerlyOptions,
+        // Store assignOptions on VM so processors can access them
+        if (this.options.assignOptions) {
+            Object.defineProperty(vm, '__roundaboutAssignOptions', {
+                value: this.options.assignOptions,
                 enumerable: false,
                 writable: false,
                 configurable: true

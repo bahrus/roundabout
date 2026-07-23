@@ -449,7 +449,7 @@ async function executeAction<TProps, TActions>(
         } else {
             // Use traditional approach with assignGingerly
             const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-            await assignGingerly(vm, result, vmAny.__roundaboutAssignGingerlyOptions);
+            await assignGingerly(vm, result, vmAny.__roundaboutAssignOptions);
         }
     }
 }

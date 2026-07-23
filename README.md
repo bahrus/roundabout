@@ -154,7 +154,7 @@ increment(self) {
 Roundabout uses [assignGingerly](https://github.com/bahrus/assign-gingerly) to merge action results back into the view model. assignGingerly supports optional-chaining-in-reverse syntax and method invocation, which means DOM updates can be expressed declaratively in action return values:
 
 ```javascript
-// With assignGingerlyOptions: { withMethods: ['querySelector'], aka: { q: 'querySelector' } }
+// With assignOptions: { withMethods: ['querySelector'], aka: { q: 'querySelector' } }
 
 updateCountDisplay(self) {
     return {
@@ -176,12 +176,12 @@ Key assignGingerly features used with roundabout:
 - **Aliases** (`aka`): shortens verbose method names (e.g., `q` for `querySelector`)
 - **Class selector shorthand** (`q?..className`): the `?..` syntax passes the next segment as an argument to the preceding method (e.g., `querySelector('.className')`)
 
-Pass these options via `assignGingerlyOptions` in the roundabout config:
+Pass these options via `assignOptions` in the roundabout config:
 
 ```javascript
 const [vm, propagator] = await roundabout({
     vm: this,
-    assignGingerlyOptions: {
+    assignOptions: {
         withMethods: ['querySelector', 'appendChild'],
         aka: { q: 'querySelector' }
     },
@@ -213,7 +213,7 @@ const raConfig = {
         decrementButton_to_decrement_on: 'click',
         resetButton_to_reset_on: 'click',
     },
-    assignGingerlyOptions: {
+    assignOptions: {
         withMethods: ['querySelector', 'appendChild'],
         aka: { q: 'querySelector' }
     },
@@ -319,7 +319,7 @@ const raConfig = {
         on_click_of_decrementButton_inc_count_by: -1,
         on_click_of_resetButton_set_count_to: 0,
     },
-    assignGingerlyOptions: {
+    assignOptions: {
         withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
         aka: {
             q: 'querySelector'
@@ -527,7 +527,7 @@ const raConfig = {
         on_click_of_resetButton_set_count_to: 0,
     },
     merges: [ /* ... */ ],
-    assignGingerlyOptions: { withMethods: ['querySelector', 'appendChild'], aka: { q: 'querySelector' } }
+    assignOptions: { withMethods: ['querySelector', 'appendChild'], aka: { q: 'querySelector' } }
 };
 
 class UserCounter extends HTMLElement {
@@ -1726,7 +1726,7 @@ Each merge entry has:
 - **Conditions** (`ifKeyIn`, `ifAllOf`, `ifNoneOf`, etc.) — same as actions, determines when the merge fires
 - **`assign`** — an object where keys are assignGingerly LHS paths (targets) and values are `?.`-prefixed path strings resolved against the view model (sources). Non-path values pass through as literals.
 
-When conditions are met, roundabout calls `assignFrom(vm, assign, { from: vm, ...assignGingerlyOptions })`, which:
+When conditions are met, roundabout calls `assignFrom(vm, assign, { from: vm, ...assignOptions })`, which:
 1. Resolves each RHS `?.` path against the vm
 2. Assigns the resolved values into the vm using assignGingerly
 
@@ -1794,7 +1794,7 @@ merges: [
 
 ### Key points
 
-- Merges inherit `assignGingerlyOptions` from the roundabout config (e.g., `withMethods`, `aka`)
+- Merges inherit `assignOptions` from the roundabout config (e.g., `withMethods`, `aka`)
 - RHS strings starting with `?.` are resolved as paths against the vm; all other values pass through as-is
 - Merges use the same condition evaluation as actions (`ifKeyIn` fires on every change, others fire on transition)
 - The `delay` and `debug` options from `LogicOp` are supported
@@ -1864,7 +1864,7 @@ merges: [
 ]
 ```
 
-Or use `infer` in the `assignGingerlyOptions`:
+Or use `infer` in the `assignOptions`:
 
 ```html
 <div itemscope>
@@ -1898,7 +1898,7 @@ merges: [
         // resolves to two assignments: [name="firstName"] and [name="lastName"]
     }
 ]
-// with assignGingerlyOptions: { where_x_in: ['firstName', 'lastName'] }
+// with assignOptions: { where_x_in: ['firstName', 'lastName'] }
 ```
 
 Multiple variables produce a cartesian product — `where_x_in` × `where_y_in` × `where_z_in`.
@@ -1925,7 +1925,7 @@ merges: [
         }
     }
 ]
-// with assignGingerlyOptions: { withIds: { main: { qry: '.mainView' } } }
+// with assignOptions: { withIds: { main: { qry: '.mainView' } } }
 ```
 
 On first encounter, the element is found via `querySelector`, auto-assigned an ID if it doesn't have one, and cached as a `WeakRef`. Subsequent merge cycles resolve in ~10ns via the cache. GC-safe — if the element is collected, it falls back to `getElementById`.

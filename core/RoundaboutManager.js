@@ -59,10 +59,10 @@ export class RoundaboutManager {
             };
         }
         this.vm = vm;
-        // Store assignGingerlyOptions on VM so processors can access them
-        if (this.options.assignGingerlyOptions) {
-            Object.defineProperty(vm, '__roundaboutAssignGingerlyOptions', {
-                value: this.options.assignGingerlyOptions,
+        // Store assignOptions on VM so processors can access them
+        if (this.options.assignOptions) {
+            Object.defineProperty(vm, '__roundaboutAssignOptions', {
+                value: this.options.assignOptions,
                 enumerable: false,
                 writable: false,
                 configurable: true

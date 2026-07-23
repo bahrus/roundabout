@@ -8,12 +8,12 @@ export async function roundabout(options, infractions) {
             const { assignFrom } = await import('assign-gingerly/assignFrom.js');
             await assignFrom(returnObj[0], initVals, {
                 from: returnObj[0],
-                ...options.assignGingerlyOptions,
+                ...options.assignOptions,
                 protocols: options.protocols
             });
         }
         else {
-            (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignGingerlyOptions);
+            (await import('assign-gingerly/assignGingerly.js')).assignGingerly(returnObj[0], initVals, options.assignOptions);
         }
     }
     return returnObj;

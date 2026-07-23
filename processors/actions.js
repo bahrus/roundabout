@@ -339,7 +339,7 @@ async function executeAction(vm, actionKey, config, changedProperty) {
         else {
             // Use traditional approach with assignGingerly
             const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-            await assignGingerly(vm, result, vmAny.__roundaboutAssignGingerlyOptions);
+            await assignGingerly(vm, result, vmAny.__roundaboutAssignOptions);
         }
     }
 }

@@ -263,7 +263,7 @@ const raConfig = {
         decrementButton_to_decrement_on: 'click',
     },
     
-    assignGingerlyOptions: {
+    assignOptions: {
         withMethods: ['querySelector', 'appendChild', 'add'],
         aka: {
             q: 'querySelector'

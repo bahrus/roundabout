@@ -208,9 +208,9 @@ async function executeMerge<TProps>(
         const { assignFrom } = await import('assign-gingerly/assignFrom.js');
         const options: any = { from: vm };
 
-        // Pass through assignGingerlyOptions stored on the VM
-        if (vmAny.__roundaboutAssignGingerlyOptions) {
-            Object.assign(options, vmAny.__roundaboutAssignGingerlyOptions);
+        // Pass through assignOptions stored on the VM
+        if (vmAny.__roundaboutAssignOptions) {
+            Object.assign(options, vmAny.__roundaboutAssignOptions);
         }
 
         await assignFrom(vm, config.assign, options);

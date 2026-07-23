@@ -80,7 +80,7 @@ export class RoundaboutFeature {
         // to trigger reactive processing on initial values
         if (initVals && Object.keys(initVals).length > 0) {
             import('assign-gingerly/assignGingerly.js').then(({ assignGingerly }) => {
-                assignGingerly(hostElement, initVals, raConfig.assignGingerlyOptions);
+                assignGingerly(hostElement, initVals, raConfig.assignOptions);
             });
         }
     }

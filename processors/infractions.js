@@ -107,7 +107,7 @@ async function executeInfraction(vm, fn, fnName) {
         // Merge result back into vm
         if (result && typeof result === 'object' && !Array.isArray(result)) {
             const { assignGingerly } = await import('assign-gingerly/assignGingerly.js');
-            await assignGingerly(vm, result, vm.__roundaboutAssignGingerlyOptions);
+            await assignGingerly(vm, result, vm.__roundaboutAssignOptions);
         }
     }
     catch (error) {
