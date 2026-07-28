@@ -124,6 +124,7 @@
                 withMethods: ['appendChild'],
                 //withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
                 aka: {
+                    ...aka,
                     q: 'querySelector'
                 },
                 handlers: builtInEmoji,
@@ -150,7 +151,7 @@
                     ifAllOf: ['status'],
                     assign: {
                         '?.statusClassName =>': {
-                            do: 'builtIns.join',
+                            do: '🔗',
                             get: {
                                 separator: ' ',
                                 value: ['status', '?.status']
@@ -168,7 +169,7 @@
                 {
                     ifAllOf: ['template'],
                     assign: {
-                        clone: '?.template?.content?.cloneNode?.true'
+                        clone: '?.template?.©️'
                     },
                 },
                 {
