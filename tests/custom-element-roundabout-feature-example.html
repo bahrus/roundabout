@@ -125,7 +125,8 @@
                 //withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
                 aka: {
                     ...aka,
-                    q: 'querySelector'
+                    q: 'querySelector',
+                    '🔎': 'clone?.querySelector'
                 },
                 handlers: builtInEmoji,
             },
@@ -175,37 +176,37 @@
                 {
                     ifAllOf: ['clone'],
                     assign: {
-                        incrementButton: '?.clone?.q?..increment',
-                        decrementButton: '?.clone?.q?..decrement',
-                        resetButton: '?.clone?.q?..reset'
+                        incrementButton: '?.🔎?..increment',
+                        decrementButton: '?.🔎?..decrement',
+                        resetButton: '?.🔎?..reset'
                     }
                 },
                 {
                     ifKeyIn: ['username'],
                     ifAllOf: ['clone'],
                     assign: {
-                        '?.clone?.q?..username?.textContent': '?.username'
+                        '?.🔎?..username?.textContent': '?.username'
                     }
                 },
                 {
                     ifKeyIn: ['statusMessageText'],
                     ifAllOf: ['clone', 'statusMessageText'],
                     assign: {
-                        '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+                        '?.🔎?..status-text?.textContent': '?.statusMessageText',
                     }
                 },
                 {
                     ifKeyIn: ['statusClassName'],
                     ifAllOf: ['clone', 'statusClassName'],
                     assign: {
-                        '?.clone?.q?..status?.classList': '?.statusClassName',
+                        '?.🔎?..status?.classList': '?.statusClassName',
                     }
                 },
                 {
                     ifKeyIn: ['count'],
                     ifAllOf: ['clone'],
                     assign: {
-                        '?.clone?.q?..count-value?.textContent': '?.count',
+                        '?.🔎?..count-value?.textContent': '?.count',
                         renderCount: 1,
                     }
                 },
