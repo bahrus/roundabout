@@ -85,7 +85,7 @@
     <user-counter-feature id="counter3" user-counter-count="25" user-counter-username="Bruce"></user-counter-feature>
     
     <script type="module">
-        import {akaMethods, aka} from 'assign-gingerly/emojis.js';
+        import {akaMethods, aka, builtInEmoji} from 'assign-gingerly/emojis.js';
         const templateHTML = String.raw`
 <div class="header">User: <span class="username"></span></div>
 <div class="count">Count: <span class="count-value"></span></div>
@@ -125,14 +125,15 @@
                 //withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
                 aka: {
                     q: 'querySelector'
-                }
+                },
+                handlers: builtInEmoji,
             },
             merges: [
                 {
                     ifKeyIn: ['count'],
                     assign: {
                         '?. =>': {
-                            do: 'builtIns.rangeSelector',
+                            do: '📊',
                             get: {
                                 value: '?.count',
                                 when: [
