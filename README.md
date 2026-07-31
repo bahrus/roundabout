@@ -300,7 +300,7 @@ Notice what's absent: no manual `addEventListener` calls, no `this.querySelector
 
 ### Going fully declarative with merges and compacts
 
-The example above still has methods for `increment`, `decrement`, `reset`, `createClone`, `render`, `updateCountDisplay`, `updateStatusDisplay`, and `updateUsernameDisplay`. Most of these are simple enough to express declaratively. Using **merges** (JSON-serializable reactive assignments) and the **`on_EVENT_of_X`** compact patterns, we can eliminate all but the one method that contains real logic (`updateStatus`):
+The example above still has methods for `increment`, `decrement`, `reset`, `createClone`, `render`, `updateCountDisplay`, `updateStatusDisplay`, and `updateUsernameDisplay`. Most of these are simple enough to express declaratively. Using **merges** (JSON-serializable reactive assignments) and the **`on_EVENT_of_X`** compact patterns, we can eliminate all these methods.  Every single one:
 
 ```javascript
 const raConfig = {
@@ -308,29 +308,27 @@ const raConfig = {
         properties: ['incrementButton', 'decrementButton', 'resetButton'],
         logIfCollected: 'warn'
     },
-    actions: {
-        // updateStatus: {
-        //     ifKeyIn: ['count'],
-        // },
-    },
-    handlers: {},
     compacts: {
         on_click_of_incrementButton_inc_count_by: 1,
         on_click_of_decrementButton_inc_count_by: -1,
         on_click_of_resetButton_set_count_to: 0,
     },
     assignOptions: {
-        withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
+        akaMethods,
+        withMethods: ['appendChild'],
         aka: {
-            q: 'querySelector'
-        }
+            ...aka,
+            q: 'querySelector',
+            '🔎': 'clone?.querySelector'
+        },
+        handlers: builtInEmoji,
     },
     merges: [
         {
             ifKeyIn: ['count'],
             assign: {
                 '?. =>': {
-                    do: 'builtIns.rangeSelector',
+                    do: '📊',
                     get: {
                         value: '?.count',
                         when: [
@@ -347,7 +345,7 @@ const raConfig = {
             ifAllOf: ['status'],
             assign: {
                 '?.statusClassName =>': {
-                    do: 'builtIns.join',
+                    do: '🔗',
                     get: {
                         separator: ' ',
                         value: ['status', '?.status']
@@ -365,43 +363,43 @@ const raConfig = {
         {
             ifAllOf: ['template'],
             assign: {
-                clone: '?.template?.content?.cloneNode?.true'
+                clone: '?.template?.©️'
             },
         },
         {
             ifAllOf: ['clone'],
             assign: {
-                incrementButton: '?.clone?.q?..increment',
-                decrementButton: '?.clone?.q?..decrement',
-                resetButton: '?.clone?.q?..reset'
+                incrementButton: '?.🔎?..increment',
+                decrementButton: '?.🔎?..decrement',
+                resetButton: '?.🔎?..reset'
             }
         },
         {
             ifKeyIn: ['username'],
             ifAllOf: ['clone'],
             assign: {
-                '?.clone?.q?..username?.textContent': '?.username'
+                '?.🔎?..username?.🔤': '?.username'
             }
         },
         {
             ifKeyIn: ['statusMessageText'],
             ifAllOf: ['clone', 'statusMessageText'],
             assign: {
-                '?.clone?.q?..status-text?.textContent': '?.statusMessageText',
+                '?.🔎?..status-text?.🔤': '?.statusMessageText',
             }
         },
         {
             ifKeyIn: ['statusClassName'],
             ifAllOf: ['clone', 'statusClassName'],
             assign: {
-                '?.clone?.q?..status?.classList': '?.statusClassName',
+                '?.🔎?..status?.classList': '?.statusClassName',
             }
         },
         {
             ifKeyIn: ['count'],
             ifAllOf: ['clone'],
             assign: {
-                '?.clone?.q?..count-value?.textContent': '?.count',
+                '?.🔎?..count-value?.🔤': '?.count',
                 renderCount: 1,
             }
         },
@@ -420,20 +418,65 @@ const raConfig = {
     },
 };
 
+// withAttrs configuration for parsing element attributes
+const withAttrs = {
+    base: 'user-counter',
+    count: '${base}-count',
+    _count: {
+        instanceOf: 'Number',
+        valIfNull: 0,
+    },
+    username: '${base}-username',
+};
+
 ```
 
 The class shrinks to just lifecycle glue and the one method with real logic:
 
 ```javascript
-class UserCounter extends HTMLElement {
-    async connectedCallback() {
-        const [vm] = await roundabout({ vm: this, ...raConfig });
+/**
+ * UserCounterFeature — uses RoundaboutFeature for reactive property management.
+ * 
+ * Key differences from the other examples:
+ * - No async connectedCallback
+ * - No direct roundabout/roundaboutSync import
+ * - Attribute parsing handled by the feature system
+ * - Feature is accessed via lazy getter (this.roundabout)
+ */
+class UserCounterFeature extends HTMLElement {
+    static supportedFeatures = {
+        roundabout: {
+            fallbackSpawn: RoundaboutFeature,
+        }
+    };
+
+    connectedCallback() {
+        // Access the feature getter — triggers RoundaboutFeature constructor
+        // which calls roundaboutSync internally
+        const ra = this.roundabout;
+
+        // template is a runtime object, can't be in defaultPropVals
         this.template = template;
-        if (this.hasAttribute('username')) this.username = this.getAttribute('username');
-        if (this.hasAttribute('initial-count'))
-            this.count = parseInt(this.getAttribute('initial-count'), 10) || 0;
     }
+
+
 }
+
+// assignFeatures calls RoundaboutFeature.onAssigned → makeRoundaboutReady
+// This installs prototype getter/setters and pre-loads processor modules
+await customElements.assignFeatures(UserCounterFeature, {
+    roundabout: {
+        spawn: RoundaboutFeature,
+        customData: {
+            raConfig,
+        },
+        withAttrs,
+    }
+});
+
+// Now define — connectedCallback will be synchronous
+customElements.define('user-counter-feature', UserCounterFeature);
+
 ```
 
 What changed:
