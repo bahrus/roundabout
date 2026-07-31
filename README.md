@@ -318,7 +318,6 @@ const raConfig = {
         withMethods: ['appendChild'],
         aka: {
             ...aka,
-            q: 'querySelector',
             '🔎': 'clone?.querySelector'
         },
         handlers: builtInEmoji,

@@ -108,12 +108,6 @@
                 properties: ['incrementButton', 'decrementButton', 'resetButton'],
                 logIfCollected: 'warn'
             },
-            actions: {
-                // updateStatus: {
-                //     ifKeyIn: ['count'],
-                // },
-            },
-            handlers: {},
             compacts: {
                 on_click_of_incrementButton_inc_count_by: 1,
                 on_click_of_decrementButton_inc_count_by: -1,
@@ -122,10 +116,8 @@
             assignOptions: {
                 akaMethods,
                 withMethods: ['appendChild'],
-                //withMethods: ['querySelector', 'appendChild', 'add', 'cloneNode'],
                 aka: {
                     ...aka,
-                    q: 'querySelector',
                     '🔎': 'clone?.querySelector'
                 },
                 handlers: builtInEmoji,
