@@ -85,7 +85,7 @@
     <user-counter-feature id="counter3" user-counter-count="25" user-counter-username="Bruce"></user-counter-feature>
     
     <script type="module">
-        import {akaMethods, aka, builtInEmoji} from 'assign-gingerly/emojis.js';
+        import {akaMethods, aka, builtInEmoji} from 'assign-gingerly/DX/emojis.js';
         const templateHTML = String.raw`
 <div class="header">User: <span class="username"></span></div>
 <div class="count">Count: <span class="count-value"></span></div>
@@ -185,14 +185,14 @@
                     ifKeyIn: ['username'],
                     ifAllOf: ['clone'],
                     assign: {
-                        '?.🔎?..username?.textContent': '?.username'
+                        '?.🔎?..username?.🔤': '?.username'
                     }
                 },
                 {
                     ifKeyIn: ['statusMessageText'],
                     ifAllOf: ['clone', 'statusMessageText'],
                     assign: {
-                        '?.🔎?..status-text?.textContent': '?.statusMessageText',
+                        '?.🔎?..status-text?.🔤': '?.statusMessageText',
                     }
                 },
                 {
@@ -206,7 +206,7 @@
                     ifKeyIn: ['count'],
                     ifAllOf: ['clone'],
                     assign: {
-                        '?.🔎?..count-value?.textContent': '?.count',
+                        '?.🔎?..count-value?.🔤': '?.count',
                         renderCount: 1,
                     }
                 },
