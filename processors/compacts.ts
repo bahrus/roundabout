@@ -275,7 +275,7 @@ async function executeCompact<TProps, TActions>(
         case 'dispatch':
             if (parsed.eventName && vmAny.propagator) {
                 const { CompactDispatchEvent } = await import('../core/Events.js');
-                vmAny.propagator.dispatchEvent(new CompactDispatchEvent(parsed.eventName, sourceValue));
+                vmAny.dispatchEvent(new CompactDispatchEvent(parsed.eventName, sourceValue));
             }
             break;
     }
