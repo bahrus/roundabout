@@ -784,8 +784,14 @@ const raConfig = {
         
         // the number on the rhs is the delay to apply, if any
         when_age_changes_toggle_ageChangedToggle: 0,
-        //rhs specifies amount to increment, which could even be negative!
+        //rhs indicates amount to decrement, which could even be negative!
         when_age_changes_inc_ageChangeCount_by: 1,
+
+        // When an EventTarget property fires an event, apply a declarative assignFrom pattern
+        on_click_of_submitButton_assign: {
+            '?.submitCount +=': 1,
+            '?.lastSubmitTime': '?.currentTime'
+        }
     }
 };
 
@@ -798,6 +804,31 @@ export class MoodStone extends O implements IMoodStoneActions {
     
 }
 ```
+
+> [!NOTE]
+> The `on_EVENT_of_X_assign` compact uses `assignFrom` under the hood, so the pattern value is resolved against the view model (`from: vm`). Event data is not directly accessible in the pattern; use a handler if you need to read from the event object.
+
+### Event-driven compacts
+
+In addition to reactive compacts (when property A changes, do something to property B), you can react to DOM events on EventTarget properties:
+
+```TypeScript
+compacts: {
+    // Increment count each time the button is clicked
+    on_click_of_incrementButton_inc_count_by: 1,
+
+    // Set count to zero each time the reset button is clicked
+    on_click_of_resetButton_set_count_to: 0,
+
+    // Apply a full assignFrom pattern when the button is clicked
+    on_click_of_submitButton_assign: {
+        '?.submitCount +=': 1,
+        '?.lastSubmitTime': '?.currentTime'
+    }
+}
+```
+
+For `on_EVENT_of_X_assign`, the value is a pattern object passed to `assignFrom`. It supports all the usual assignGingerly features: optional-chaining-in-reverse paths (`?.prop`), `+=` increments, method invocation via `withMethods`, aliases, etc. The pattern is resolved against the view model, not the event or the element.
 
 > [!NOTE]
 > Compacts that invoke a method, like the first example, can't be mixed with actions that are tied to the same method, as it creates too much ambiguity, and would thus defeat the purpose of providing better developer ergonomics.
@@ -1446,6 +1477,27 @@ vm.resetButton = document.querySelector('.reset');
 
 ---
 
+#### `on_EVENT_of_X_assign`
+Listens for a DOM event on an EventTarget property and applies an `assignFrom` pattern to the view model. Supports all assignGingerly features such as optional-chaining-in-reverse paths (`?.prop`), `+=` increments, method invocation, and aliases. The pattern is resolved against the view model (`from: vm`), not the event or the element.
+
+```typescript
+compacts: {
+    on_click_of_submitButton_assign: {
+        '?.submitCount +=': 1,
+        '?.lastSubmitTime': '?.currentTime'
+    }
+}
+```
+
+**Example:**
+```javascript
+vm.submitButton = document.querySelector('.submit');
+vm.currentTime = Date.now();
+// Now clicking the button increments vm.submitCount and copies vm.currentTime to vm.lastSubmitTime
+```
+
+---
+
 ## Quick Reference Table
 
 | Pattern | Purpose | RHS Value | Example |
@@ -1460,6 +1512,7 @@ vm.resetButton = document.querySelector('.reset');
 | `when_X_changes_dispatch` | Fire event | Event name | `when_state_changes_dispatch: 'changed'` |
 | `on_EVENT_of_X_inc_Y_by` | Increment on DOM event | Amount | `on_click_of_button_inc_count_by: 1` |
 | `on_EVENT_of_X_set_Y_to` | Set value on DOM event | Value to set | `on_click_of_reset_set_count_to: 0` |
+| `on_EVENT_of_X_assign` | Apply assignFrom pattern on DOM event | Pattern object | `on_click_of_button_assign: { '?.clicked': true }` |
 
 ---
 

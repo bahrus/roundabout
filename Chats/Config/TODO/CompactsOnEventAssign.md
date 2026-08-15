@@ -154,3 +154,27 @@ I agree with all your recommendations.  Please implement, and update this docume
 - The `from` source is the VM, consistent with `merges`.
 - Event data is not directly accessible in the pattern; if needed later, a separate keyword should be introduced.
 - The `signal` is threaded through to `assignFrom`, matching the abort-signal work discussed in the other chat.
+
+
+---
+
+## Bruce's Response II
+
+Can you update the ReadMe.md with this new feature?
+
+---
+
+## README Update
+
+Updated `README.md` to document the new `on_EVENT_of_X_assign` compact:
+
+1. **Main Compacts section** (`## Compacts`)
+   - Added an `on_click_of_submitButton_assign` example to the introductory compact snippet.
+   - Added a new `### Event-driven compacts` subsection explaining `on_EVENT_of_X_inc_Y_by`, `on_EVENT_of_X_set_Y_to`, and `on_EVENT_of_X_assign`.
+   - Noted that the pattern resolves against the VM, not the event or element.
+
+2. **Compacts Reference** (`## Compacts Reference`)
+   - Added a dedicated `#### on_EVENT_of_X_assign` subsection with an example showing `+=` and path resolution.
+
+3. **Quick Reference Table**
+   - Added row for `on_EVENT_of_X_assign` with example pattern object.
