@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact - on_EVENT_of_X_assign</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    <button id="test-button" type="button">Click me</button>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        const button = document.getElementById('test-button');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting on_event_assign compact test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const [vm, propagator] = await roundabout({
+                vm: {
+                    button,
+                    clicked: false,
+                    clickCount: 0
+                },
+                compacts: {
+                    on_click_of_button_assign: {
+                        '?.clicked': true,
+                        '?.clickCount +=': 1
+                    }
+                }
+            });
+
+            addLog('Roundabout initialized');
+            addLog(`Initial: clicked=${vm.clicked}, clickCount=${vm.clickCount}`);
+            
+            // Simulate two clicks on the button
+            button.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After first click: clicked=${vm.clicked}, clickCount=${vm.clickCount}`);
+            
+            button.click();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            addLog(`After second click: clicked=${vm.clicked}, clickCount=${vm.clickCount}`);
+            
+            if (vm.clicked === true && vm.clickCount === 2) {
+                target.setAttribute('mark', 'good');
+                target.textContent = `✓ Test passed! clicked=${vm.clicked}, clickCount=${vm.clickCount}`;
+                addLog('TEST PASSED');
+            } else {
+                target.setAttribute('mark', 'bad');
+                target.textContent = `✗ Test failed! Expected clicked=true and clickCount=2, got clicked=${vm.clicked}, clickCount=${vm.clickCount}`;
+                addLog('TEST FAILED');
+            }
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

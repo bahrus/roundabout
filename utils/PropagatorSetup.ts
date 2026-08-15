@@ -519,5 +519,9 @@ function extractSourceProperty(compactKey: string): string | null {
     match = compactKey.match(/^on_.+?_of_(.+?)_set_/);
     if (match) return match[1];
     
+    // on_EVENT_of_X_assign -> X
+    match = compactKey.match(/^on_.+?_of_(.+?)_assign$/);
+    if (match) return match[1];
+    
     return null;
 }

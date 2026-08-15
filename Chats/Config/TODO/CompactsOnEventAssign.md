@@ -105,3 +105,52 @@ This is a straightforward, useful addition. It extends the existing event-compac
 ## Human Response I
 
 I agree with all your recommendations.  Please implement, and update this document with implementation notes as you progress.
+
+---
+
+## Implementation Notes
+
+### Files changed
+
+1. **`types/roundabout/types.d.ts`**
+   - Added new `Compacts` union member:
+     ```ts
+     | Partial<{[key in `on_${TEvents}_of_${keyof TProps & string}_assign`]: Record<string, any>}>
+     ```
+
+2. **`processors/compacts.ts`** (and compiled `processors/compacts.js`)
+   - Added `on_event_assign` to the `ParsedCompact` type and interface.
+   - Added parser branch for `^on_(.+)_of_(.+)_assign$`.
+   - Included `on_event_assign` in the event-listener branch of `processCompacts` (it was previously only checking for `on_event_inc` / `on_event_set`).
+   - Extended `setupEventCompactListener` to execute `assignFrom` when the event fires:
+     - `from: vm`
+     - Merges `vm.__roundaboutAssignOptions`
+     - Passes `signal: vm.RAController?.signal`
+     - Wraps the call in `try/catch` and logs errors.
+
+3. **`utils/PropagatorSetup.ts`**
+   - Updated `extractSourceProperty` to recognize `on_EVENT_of_X_assign` so the source property (the EventTarget element) gets a getter/setter and is monitored.
+
+4. **`roundaboutSync.ts`**
+   - Updated the synchronous `extractSourceProperty` mirror with the same `on_EVENT_of_X_assign` regex so the fast-path sync initialization also monitors the element property.
+
+5. **New test files**
+   - `tests/compacts/compact-on-event-assign.html`
+   - `tests/compacts/compact-on-event-assign.spec.mjs`
+
+### Gotchas hit during implementation
+
+- **processCompacts routing**: the new `on_event_assign` type had to be added to the `if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set')` branch. Without this, the compact was treated as a normal reactive compact and `setupEventCompactListener` was never called, so no listener was ever attached.
+- **Property inference**: even after the parser recognized the key, the source property (`button` in the test) wasn't being monitored until `extractSourceProperty` in both `utils/PropagatorSetup.ts` and `roundaboutSync.ts` was updated.
+- **Test pattern**: using `'?.clickCount': '?.clickCount'` does not increment — it assigns the current value to itself. The test uses `'?.clickCount +=': 1` to actually count clicks.
+
+### Verification
+
+- `npm run build` compiles successfully (the three reported TS errors are pre-existing in `node_modules` and `processors/merges.ts`, unrelated to this change).
+- `npm test` passes: **96 passed** (93 existing + 3 new cross-browser tests for the new compact).
+
+### Notes / follow-ups
+
+- The `from` source is the VM, consistent with `merges`.
+- Event data is not directly accessible in the pattern; if needed later, a separate keyword should be introduced.
+- The `signal` is threaded through to `assignFrom`, matching the abort-signal work discussed in the other chat.

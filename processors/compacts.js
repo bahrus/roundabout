@@ -18,7 +18,7 @@ export async function processCompacts(vm, compacts, onChange) {
         if (!reactions.has(parsed.sourceProp)) {
             reactions.set(parsed.sourceProp, []);
         }
-        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set') {
+        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set' || parsed.type === 'on_event_assign') {
             // Event listener compact: attach/detach listener when element property changes
             const listenerState = { abortController: undefined };
             eventListenerStates.push(listenerState);
@@ -180,6 +180,17 @@ async function parseCompact(key, value) {
             setValue: value
         };
     }
+    // on_EVENT_of_X_assign
+    match = key.match(/^on_(.+)_of_(.+)_assign$/);
+    if (match) {
+        return {
+            type: 'on_event_assign',
+            eventName: match[1],
+            sourceProp: match[2],
+            delay: 0,
+            assignPattern: value
+        };
+    }
     return null;
 }
 async function executeCompact(vm, parsed, sourceValue) {
@@ -250,9 +261,25 @@ function setupEventCompactListener(vm, parsed, state) {
     }
     const abortController = new AbortController();
     state.abortController = abortController;
-    element.addEventListener(parsed.eventName, () => {
+    element.addEventListener(parsed.eventName, async () => {
         if (parsed.type === 'on_event_set') {
             vm[parsed.targetProp] = parsed.setValue;
+        }
+        else if (parsed.type === 'on_event_assign') {
+            try {
+                const { assignFrom } = await import('assign-gingerly/assignFrom.js');
+                const options = { from: vm };
+                if (vm.__roundaboutAssignOptions) {
+                    Object.assign(options, vm.__roundaboutAssignOptions);
+                }
+                if (vm.RAController) {
+                    options.signal = vm.RAController.signal;
+                }
+                await assignFrom(vm, parsed.assignPattern, options);
+            }
+            catch (error) {
+                console.error(`Error executing on_event_assign compact:`, error);
+            }
         }
         else {
             const current = vm[parsed.targetProp] || 0;
