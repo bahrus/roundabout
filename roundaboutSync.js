@@ -124,7 +124,19 @@ function setupRoundaboutReadyInterface(vm, abortController) {
 function initializeInstanceStorage(vm, propertiesToMonitor, weakRefConfig) {
     for (const prop of propertiesToMonitor) {
         const storageKey = `__${prop}`;
-        if (!(storageKey in vm)) {
+        // Walk the prototype chain for an accessor descriptor
+        let protoDescriptor;
+        let proto = Object.getPrototypeOf(vm);
+        while (proto) {
+            const desc = Object.getOwnPropertyDescriptor(proto, prop);
+            if (desc && (desc.get || desc.set)) {
+                protoDescriptor = desc;
+                break;
+            }
+            proto = Object.getPrototypeOf(proto);
+        }
+        const protoHasGetterOnly = protoDescriptor && protoDescriptor.get && !protoDescriptor.set;
+        if (!(storageKey in vm) && !protoHasGetterOnly) {
             const currentValue = vm[prop];
             const useWeakRef = weakRefConfig?.properties?.has(prop);
             const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
@@ -135,9 +147,10 @@ function initializeInstanceStorage(vm, propertiesToMonitor, weakRefConfig) {
                 configurable: true,
             });
         }
-        // Delete any own data property that would shadow the prototype getter/setter
+        // Delete any own data property that would shadow a prototype getter/setter,
+        // but preserve presets for read-only native accessors (getter only, no setter).
         const ownDesc = Object.getOwnPropertyDescriptor(vm, prop);
-        if (ownDesc && !ownDesc.get && !ownDesc.set) {
+        if (ownDesc && !ownDesc.get && !ownDesc.set && !protoHasGetterOnly) {
             delete vm[prop];
         }
     }
@@ -462,10 +475,24 @@ function installGetterSettersInline(vm, propertiesToMonitor, propagator, weakRef
         for (const prop of propertiesToMonitor) {
             const storageKey = `__${prop}`;
             const useWeakRef = weakRefConfig.properties.has(prop);
-            // Initialize per-instance storage
+            // Walk the prototype chain for an accessor descriptor
+            let protoDescriptor;
+            let currentProto = proto;
+            while (currentProto) {
+                const desc = Object.getOwnPropertyDescriptor(currentProto, prop);
+                if (desc && (desc.get || desc.set)) {
+                    protoDescriptor = desc;
+                    break;
+                }
+                currentProto = Object.getPrototypeOf(currentProto);
+            }
+            const protoHasGetterSetter = protoDescriptor && (protoDescriptor.get || protoDescriptor.set);
+            const protoHasGetterOnly = protoDescriptor && protoDescriptor.get && !protoDescriptor.set;
+            // Initialize per-instance storage unless the prototype has a read-only
+            // native accessor — in that case we preserve the preset own data property.
             const currentValue = vm[prop];
             const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
-            if (!(storageKey in vm)) {
+            if (!(storageKey in vm) && !protoHasGetterOnly) {
                 Object.defineProperty(vm, storageKey, {
                     value: valueToStore,
                     writable: true,
@@ -474,8 +501,12 @@ function installGetterSettersInline(vm, propertiesToMonitor, propagator, weakRef
                 });
             }
             // Check if prototype already has getter/setter
-            const protoDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
-            if (protoDescriptor && (protoDescriptor.get || protoDescriptor.set)) {
+            if (protoHasGetterSetter) {
+                // Read-only native accessor (getter only, no setter): preserve any preset
+                // own data property and skip installing a roundabout accessor.
+                if (protoHasGetterOnly) {
+                    continue;
+                }
                 // Already has getter/setter, just ensure own data prop doesn't shadow
                 if (vm.hasOwnProperty(prop)) {
                     delete vm[prop];

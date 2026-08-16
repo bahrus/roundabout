@@ -21,6 +21,21 @@ function hasGetterSetter(obj: any, prop: string): boolean {
 }
 
 /**
+ * Find an accessor descriptor for a property in the prototype chain.
+ */
+function getAccessorDescriptorInChain(obj: any, prop: string): PropertyDescriptor | undefined {
+    let current = obj;
+    while (current) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, prop);
+        if (descriptor && (descriptor.get || descriptor.set)) {
+            return descriptor;
+        }
+        current = Object.getPrototypeOf(current);
+    }
+    return undefined;
+}
+
+/**
  * Covertly set a property value without triggering events
  * Used for internal routing optimization
  * If the property hasn't been converted to getter/setter yet, convert it first
@@ -251,13 +266,13 @@ async function convertPropertyToGetterSetter(
         // For class instances: getter/setter goes on the prototype, storage on each instance
         const storageKey = `__${prop}`;
         const proto = Object.getPrototypeOf(vm);
-        const protoDescriptor = Object.getOwnPropertyDescriptor(proto, prop);
+        const protoDescriptor = getAccessorDescriptorInChain(proto, prop);
         const protoHasGetterSetter = protoDescriptor && (protoDescriptor.get || protoDescriptor.set);
 
         // Initialize per-instance storage
         const currentValue = vm[prop];
         const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
-        if (!(storageKey in vm)) {
+        if (!(storageKey in vm) && !(protoHasGetterSetter && protoDescriptor.get && !protoDescriptor.set)) {
             Object.defineProperty(vm, storageKey, {
                 value: valueToStore,
                 writable: true,
@@ -267,6 +282,13 @@ async function convertPropertyToGetterSetter(
         }
 
         if (protoHasGetterSetter) {
+            // If the prototype has a getter but no setter, it's a read-only native
+            // accessor (e.g. ownerDocument). Don't shadow it or delete a preset
+            // own data property — the compact listener can still read the value.
+            if (protoDescriptor.get && !protoDescriptor.set) {
+                return;
+            }
+
             // Prototype already has getter/setter (set up by a previous instance).
             // Just ensure the instance's own data property doesn't shadow it.
             if (vm.hasOwnProperty(prop)) {

@@ -113,6 +113,21 @@ export async function makeRoundaboutReady<TProps = any, TActions = TProps, ETPro
 }
 
 /**
+ * Check the prototype chain for an existing accessor descriptor.
+ */
+function getPrototypeAccessorDescriptor(proto: any, prop: string): PropertyDescriptor | undefined {
+    let current = proto;
+    while (current) {
+        const descriptor = Object.getOwnPropertyDescriptor(current, prop);
+        if (descriptor && (descriptor.get || descriptor.set)) {
+            return descriptor;
+        }
+        current = Object.getPrototypeOf(current);
+    }
+    return undefined;
+}
+
+/**
  * Install a getter/setter pair on a prototype for a given property.
  * Storage is per-instance via `this[__propName]`.
  */
@@ -124,9 +139,16 @@ function installPrototypeGetterSetter(
     const storageKey = `__${prop}`;
     const useWeakRef = weakRefConfig.properties.has(prop);
 
-    // Don't overwrite existing getter/setters
+    // Don't overwrite existing getter/setters on this prototype
     const existing = Object.getOwnPropertyDescriptor(proto, prop);
     if (existing && (existing.get || existing.set)) {
+        return;
+    }
+
+    // Don't shadow read-only native accessors in the prototype chain (e.g. ownerDocument).
+    // Presets on the instance will remain as own data properties and can still be read.
+    const inherited = getPrototypeAccessorDescriptor(proto, prop);
+    if (inherited && inherited.get && !inherited.set) {
         return;
     }
 
