@@ -28,7 +28,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
             reactions.set(parsed.sourceProp, []);
         }
         
-        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set' || parsed.type === 'on_event_assign') {
+        if (parsed.type === 'on_event_inc' || parsed.type === 'on_event_set' || parsed.type === 'on_event_assign' || parsed.type === 'on_event_assignFromEvent') {
             // Event listener compact: attach/detach listener when element property changes
             const listenerState = { abortController: undefined as AbortController | undefined };
             eventListenerStates.push(listenerState);
@@ -91,7 +91,7 @@ export async function processCompacts<TProps = any, TActions = TProps>(
 }
 
 interface ParsedCompact {
-    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch' | 'on_event_inc' | 'on_event_set' | 'on_event_assign';
+    type: 'negate' | 'pass_length' | 'echo' | 'echo_after' | 'call' | 'toggle' | 'inc' | 'dispatch' | 'on_event_inc' | 'on_event_set' | 'on_event_assign' | 'on_event_assignFromEvent';
     sourceProp: string;
     targetProp?: string;
     methodName?: string;
@@ -232,6 +232,18 @@ async function parseCompact(key: string, value: any): Promise<ParsedCompact | nu
         };
     }
 
+    // on_EVENT_of_X_assignFromEvent
+    match = key.match(/^on_(.+)_of_(.+)_assignFromEvent$/);
+    if (match) {
+        return {
+            type: 'on_event_assignFromEvent',
+            eventName: match[1],
+            sourceProp: match[2],
+            delay: 0,
+            assignPattern: value
+        };
+    }
+
     return null;
 }
 
@@ -324,7 +336,7 @@ function setupEventCompactListener(
     const abortController = new AbortController();
     state.abortController = abortController;
 
-    element.addEventListener(parsed.eventName!, async () => {
+    element.addEventListener(parsed.eventName!, async (event: Event) => {
         if (parsed.type === 'on_event_set') {
             vm[parsed.targetProp!] = parsed.setValue;
         } else if (parsed.type === 'on_event_assign') {
@@ -340,6 +352,20 @@ function setupEventCompactListener(
                 await assignFrom(vm, parsed.assignPattern!, options);
             } catch (error) {
                 console.error(`Error executing on_event_assign compact:`, error);
+            }
+        } else if (parsed.type === 'on_event_assignFromEvent') {
+            try {
+                const { assignFrom } = await import('assign-gingerly/assignFrom.js');
+                const options: any = { from: event };
+                if (vm.__roundaboutAssignOptions) {
+                    Object.assign(options, vm.__roundaboutAssignOptions);
+                }
+                if (vm.RAController) {
+                    options.signal = vm.RAController.signal;
+                }
+                await assignFrom(vm, parsed.assignPattern!, options);
+            } catch (error) {
+                console.error(`Error executing on_event_assignFromEvent compact:`, error);
             }
         } else {
             const current = vm[parsed.targetProp!] || 0;

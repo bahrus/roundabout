@@ -824,11 +824,18 @@ compacts: {
     on_click_of_submitButton_assign: {
         '?.submitCount +=': 1,
         '?.lastSubmitTime': '?.currentTime'
+    },
+
+    // Apply an assignFrom pattern resolved against the event object
+    on_input_of_searchInput_assignFromEvent: {
+        '?.searchText': '?.target?.value'
     }
 }
 ```
 
 For `on_EVENT_of_X_assign`, the value is a pattern object passed to `assignFrom`. It supports all the usual assignGingerly features: optional-chaining-in-reverse paths (`?.prop`), `+=` increments, method invocation via `withMethods`, aliases, etc. The pattern is resolved against the view model, not the event or the element.
+
+For `on_EVENT_of_X_assignFromEvent`, the pattern is also passed to `assignFrom`, but it is resolved against the event object instead of the view model. This lets you read event-specific data such as `?.target?.value`, `?.detail`, `?.key`, etc. The results are still merged into the view model.
 
 > [!NOTE]
 > Compacts that invoke a method, like the first example, can't be mixed with actions that are tied to the same method, as it creates too much ambiguity, and would thus defeat the purpose of providing better developer ergonomics.
@@ -1498,6 +1505,25 @@ vm.currentTime = Date.now();
 
 ---
 
+#### `on_EVENT_of_X_assignFromEvent`
+Listens for a DOM event on an EventTarget property and applies an `assignFrom` pattern to the view model. The pattern is resolved against the **event object** (`from: event`), making event-specific data such as `target.value`, `detail`, or `key` accessible. The assignment results are still merged into the view model.
+
+```typescript
+compacts: {
+    on_input_of_searchInput_assignFromEvent: {
+        '?.searchText': '?.target?.value'
+    }
+}
+```
+
+**Example:**
+```javascript
+vm.searchInput = document.querySelector('input[type="search"]');
+// Now typing into the input copies event.target.value into vm.searchText
+```
+
+---
+
 ## Quick Reference Table
 
 | Pattern | Purpose | RHS Value | Example |
@@ -1513,6 +1539,7 @@ vm.currentTime = Date.now();
 | `on_EVENT_of_X_inc_Y_by` | Increment on DOM event | Amount | `on_click_of_button_inc_count_by: 1` |
 | `on_EVENT_of_X_set_Y_to` | Set value on DOM event | Value to set | `on_click_of_reset_set_count_to: 0` |
 | `on_EVENT_of_X_assign` | Apply assignFrom pattern on DOM event | Pattern object | `on_click_of_button_assign: { '?.clicked': true }` |
+| `on_EVENT_of_X_assignFromEvent` | Apply assignFrom pattern resolved against event | Pattern object | `on_input_of_input_assignFromEvent: { '?.text': '?.target?.value' }` |
 
 ---
 
