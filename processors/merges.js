@@ -70,11 +70,25 @@ function inferMonitoredProperties(config) {
 }
 async function evaluateAndExecuteMerge(vm, state) {
     const config = state.config;
+    const delay = config.delay || 0;
     // Clear any pending timeout
     if (state.pendingTimeout) {
         clearTimeout(state.pendingTimeout);
         state.pendingTimeout = undefined;
     }
+    if (delay > 0) {
+        // Delay first, then check conditions and execute if met
+        state.pendingTimeout = setTimeout(async () => {
+            state.pendingTimeout = undefined;
+            await evaluateAndExecuteAfterDelay(vm, state);
+        }, delay);
+    }
+    else {
+        await evaluateAndExecuteAfterDelay(vm, state);
+    }
+}
+async function evaluateAndExecuteAfterDelay(vm, state) {
+    const config = state.config;
     const conditionsMet = evaluateConditions(vm, config);
     if (config.debug) {
         console.log(`[Merge] Conditions evaluated:`, {
@@ -95,15 +109,7 @@ async function evaluateAndExecuteMerge(vm, state) {
     if (!shouldExecute) {
         return;
     }
-    const delay = config.delay || 0;
-    if (delay > 0) {
-        state.pendingTimeout = setTimeout(async () => {
-            await executeMerge(vm, config);
-        }, delay);
-    }
-    else {
-        await executeMerge(vm, config);
-    }
+    await executeMerge(vm, config);
 }
 function evaluateConditions(vm, config) {
     const vmAny = vm;
