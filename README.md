@@ -954,6 +954,60 @@ emitter2.dispatchEvent(new CustomEvent('message'));
 
 This is demonstrated by the [first web component in the universe to use roundabout](https://github.com/bahrus/time-ticker/blob/baseline/time-ticker.ts).
 
+## WeakRef
+
+Roundabout can store DOM element (or other object) references weakly to help avoid memory leaks. When a weakly-held value is garbage collected, the getter returns `undefined`.
+
+```TypeScript
+const raConfig = {
+    weakRef: {
+        properties: ['incrementButton', 'decrementButton', 'resetButton'],
+        logIfCollected: 'warn'
+    },
+    ...
+};
+```
+
+### Single properties
+
+`weakRef.properties` lists property names whose values should be wrapped in `WeakRef`. Reading the property transparently dereferences the value.
+
+### List properties
+
+`weakRef.listProperties` lists array-valued properties whose **elements** should be wrapped in `WeakRef`. This is useful for holding the results of a `querySelectorAll` without keeping every element alive forever.
+
+```TypeScript
+const raConfig = {
+    weakRef: {
+        properties: ['hamburgerButton', 'closeButton', 'overlay', 'drawer'],
+        listProperties: ['divs', 'spans'],
+        logIfCollected: 'warn'
+    },
+    ...
+};
+```
+
+When a list property is read, roundabout returns a new array with each stored `WeakRef` dereferenced. Collected elements appear as `undefined` in their original slots so array indices remain stable.
+
+### Shorthand
+
+For single properties only, you can also pass an array:
+
+```TypeScript
+weakRef: ['trigger', 'enhancedElement']
+```
+
+### Logging
+
+`logIfCollected` controls what happens when a `WeakRef` target has been collected:
+
+- `'error'` (default): logs an error
+- `'warn'`: logs a warning
+- `'silent'`: no logging
+- `function`: custom logging callback
+
+For list properties, the log message reports how many elements were collected and at which indices.
+
 ## Hitches
 
 Whereas "Compacts" allow us to connect *two* members of the view model together, hitches allow us to coordinate *three* members.
