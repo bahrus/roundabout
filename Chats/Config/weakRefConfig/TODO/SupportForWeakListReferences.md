@@ -1,6 +1,8 @@
 # Support For Weak List References
 
-It would be great, along side [Support For Weak References](../SupportForWeakReferences.md) to also support lists of element in weak references, for example, after doing a querySelectorAll.  
+It would be great, alongside [Support For Weak References](../SupportForWeakReferences.md) to also support lists of elements in weak references.
+
+For example, after doing a querySelectorAll, rather than storing direct links to the matching elements, which could result in memory leaks, store an array, but the elements of the array are weak references.  
 
 For getting there, I have a concern about the code I'm seeing in makeRoundaboutReady.ts:
 
@@ -98,5 +100,5 @@ const raConfig = {
 }
 ```
 
-I'll let you guess how installPrototypeGetterSetter should be modified to accommodate this request, to see if we are on the same page.
+I'll let you propose how installPrototypeGetterSetter should be modified to accommodate this request, to see if we are on the same page.
 
