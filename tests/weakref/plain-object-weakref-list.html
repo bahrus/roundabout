@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plain Object WeakRef List Test</title>
+    <!-- #include virtual="/imports.html" -->
+</head>
+<body>
+    <div id="target">Testing...</div>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        const target = document.getElementById('target');
+        
+        function addLog(msg) {
+            const p = document.createElement('p');
+            p.textContent = msg;
+            log.appendChild(p);
+            console.log(msg);
+        }
+
+        try {
+            addLog('Starting plain object WeakRef list test...');
+            
+            const { roundabout } = await import('../../index.js');
+            addLog('Imported roundabout');
+
+            const div1 = document.createElement('div');
+            div1.id = 'div1';
+            const div2 = document.createElement('div');
+            div2.id = 'div2';
+            
+            const myObject = {
+                items: [div1, div2],
+                count: 0
+            };
+
+            addLog('Created myObject with DOM element list');
+
+            const [vm] = await roundabout({
+                vm: myObject,
+                propagate: ['items', 'count'],
+                weakRef: {
+                    listProperties: ['items'],
+                    logIfCollected: 'warn'
+                }
+            });
+
+            addLog('Roundabout initialized with WeakRef list for items');
+            addLog(`Initial items: ${vm.items?.map(el => el?.id).join(', ')}`);
+            
+            if (vm.items.length !== 2) {
+                throw new Error(`Expected 2 items, got ${vm.items.length}`);
+            }
+            if (vm.items[0]?.id !== 'div1') {
+                throw new Error(`Expected first item id=div1, got ${vm.items[0]?.id}`);
+            }
+            if (vm.items[1]?.id !== 'div2') {
+                throw new Error(`Expected second item id=div2, got ${vm.items[1]?.id}`);
+            }
+            
+            addLog('✓ Can access list elements');
+            
+            // Verify internal storage uses WeakRefs
+            const stored = vm.__roundaboutStorage.items;
+            if (!Array.isArray(stored)) {
+                throw new Error('Expected internal storage to be an array');
+            }
+            if (!(stored[0] instanceof WeakRef) || !(stored[1] instanceof WeakRef)) {
+                throw new Error('Expected internal storage elements to be WeakRefs');
+            }
+            
+            addLog('✓ Internal storage wraps elements in WeakRefs');
+            
+            // Update the list
+            const div3 = document.createElement('span');
+            div3.id = 'div3';
+            vm.items = [div3];
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.items.length !== 1 || vm.items[0]?.id !== 'div3') {
+                throw new Error(`List update failed: ${vm.items?.map(el => el?.id).join(', ')}`);
+            }
+            
+            addLog('✓ List updates work');
+            
+            // Test null/undefined preservation
+            const div4 = document.createElement('div');
+            div4.id = 'div4';
+            vm.items = [div4, null, undefined];
+            
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            if (vm.items[0]?.id !== 'div4') {
+                throw new Error(`Expected div4, got ${vm.items[0]?.id}`);
+            }
+            if (vm.items[1] !== null) {
+                throw new Error(`Expected null at index 1, got ${vm.items[1]}`);
+            }
+            if (vm.items[2] !== undefined) {
+                throw new Error(`Expected undefined at index 2, got ${vm.items[2]}`);
+            }
+            
+            addLog('✓ Null/undefined slots are preserved');
+            
+            target.setAttribute('mark', 'good');
+            target.textContent = `✓ Test passed! WeakRef lists work for plain objects`;
+            addLog('TEST PASSED');
+        } catch (error) {
+            addLog(`ERROR: ${error.message}`);
+            addLog(`Stack: ${error.stack}`);
+            target.setAttribute('mark', 'bad');
+            target.textContent = `✗ Error: ${error.message}`;
+        }
+    </script>
+</body>
+</html>

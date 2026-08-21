@@ -60,9 +60,14 @@ export async function covertlySetProperty(vm: any, prop: string, value: any): Pr
     }
     
     // Check if this property should use WeakRef
-    const useWeakRef = weakRefProps && weakRefProps.properties.has(prop);
-    const valueToStore = (useWeakRef && value) ? new WeakRef(value) : value;
-    
+    const mode = getWeakRefMode(weakRefProps, prop);
+    let valueToStore = value;
+    if (mode === 'single' && value) {
+        valueToStore = new WeakRef(value);
+    } else if (mode === 'list') {
+        valueToStore = wrapWeakRefList(value);
+    }
+
     // Now set the value in storage
     if (isPlainObject) {
         storage[prop] = valueToStore;
@@ -80,9 +85,9 @@ export function covertlyGetProperty(vm: any, prop: string): any {
     if (!metadata) {
         return vm[prop];
     }
-    
-    const { storage, isPlainObject } = metadata;
-    
+
+    const { storage, isPlainObject, weakRefProps } = metadata;
+
     let val: any;
     if (isPlainObject) {
         val = storage[prop];
@@ -90,9 +95,10 @@ export function covertlyGetProperty(vm: any, prop: string): any {
         const storageKey = `__${prop}`;
         val = vm[storageKey];
     }
-    
-    // Deref if it's a WeakRef
-    return (val instanceof WeakRef) ? val.deref() : val;
+
+    // Deref if it's a WeakRef (single or list)
+    const mode = getWeakRefMode(weakRefProps, prop);
+    return derefStoredValue(val, mode, weakRefProps?.logIfCollected || 'error', prop);
 }
 
 export async function setupPropagator(
@@ -158,9 +164,14 @@ export async function setupPropagator(
             // Prototype getter/setters already exist — just initialize per-instance storage
             for (const prop of propertiesToMonitor) {
                 const storageKey = `__${prop}`;
-                const useWeakRef = weakRefProps.properties.has(prop);
+                const mode = getWeakRefMode(weakRefProps, prop);
                 const currentValue = vm[prop];
-                const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
+                let valueToStore = currentValue;
+                if (mode === 'single' && currentValue) {
+                    valueToStore = new WeakRef(currentValue);
+                } else if (mode === 'list') {
+                    valueToStore = wrapWeakRefList(currentValue);
+                }
                 if (!(storageKey in vm)) {
                     Object.defineProperty(vm, storageKey, {
                         value: valueToStore,
@@ -189,24 +200,112 @@ export async function setupPropagator(
 
 interface WeakRefProps {
     properties: Set<string>;
+    listProperties: Set<string>;
     logIfCollected: 'error' | 'warn' | 'silent' | ((propName: string) => void);
 }
 
+type WeakRefMode = 'none' | 'single' | 'list';
+
 function parseWeakRefConfig(config: any): WeakRefProps {
     if (!config) {
-        return { properties: new Set(), logIfCollected: 'error' };
+        return { properties: new Set(), listProperties: new Set(), logIfCollected: 'error' };
     }
-    
+
     // Handle array shorthand: ['prop1', 'prop2']
     if (Array.isArray(config)) {
-        return { properties: new Set(config), logIfCollected: 'error' };
+        return { properties: new Set(config), listProperties: new Set(), logIfCollected: 'error' };
     }
-    
+
     // Handle object config
+    const properties = new Set<string>(config.properties || []);
+    const listProperties = new Set<string>(config.listProperties || []);
+
+    // Warn if a property is listed in both places; list mode wins.
+    for (const prop of properties) {
+        if (listProperties.has(prop)) {
+            console.warn(`Property '${prop}' is in both weakRef.properties and weakRef.listProperties; treating it as a list property.`);
+            properties.delete(prop);
+        }
+    }
+
     return {
-        properties: new Set(config.properties || []),
+        properties,
+        listProperties,
         logIfCollected: config.logIfCollected || 'error'
     };
+}
+
+function getWeakRefMode(weakRefProps: WeakRefProps | undefined, prop: string): WeakRefMode {
+    if (!weakRefProps) return 'none';
+    if (weakRefProps.listProperties.has(prop)) return 'list';
+    if (weakRefProps.properties.has(prop)) return 'single';
+    return 'none';
+}
+
+function getLogger(logIfCollected: WeakRefProps['logIfCollected']) {
+    if (typeof logIfCollected === 'function') return logIfCollected;
+    return logIfCollected === 'warn' ? console.warn : console.error;
+}
+
+/**
+ * Dereference an array stored as WeakRef elements.
+ * Returns a new array; collected elements become `undefined` in their original slots.
+ */
+function derefWeakRefList(
+    storedList: any[],
+    logIfCollected: WeakRefProps['logIfCollected'],
+    prop: string
+): any[] {
+    if (!Array.isArray(storedList)) return storedList;
+
+    const collected: number[] = [];
+    const result = storedList.map((item, idx) => {
+        if (item instanceof WeakRef) {
+            const derefed = item.deref();
+            if (derefed === undefined) collected.push(idx);
+            return derefed;
+        }
+        return item;
+    });
+
+    if (collected.length > 0 && logIfCollected !== 'silent') {
+        const logger = getLogger(logIfCollected);
+        logger(`WeakRef list property '${prop}' had ${collected.length} collected element(s) at index(es) ${collected.join(', ')}`);
+    }
+
+    return result;
+}
+
+/**
+ * Wrap each truthy element of an array in a WeakRef.
+ * Non-array values are returned unchanged.
+ */
+function wrapWeakRefList(value: any): any {
+    if (!Array.isArray(value)) return value;
+    return value.map(item => (item ? new WeakRef(item) : item));
+}
+
+/**
+ * Dereference a stored value whether it is a single WeakRef or a list of WeakRefs.
+ */
+function derefStoredValue(
+    stored: any,
+    mode: WeakRefMode,
+    logIfCollected: WeakRefProps['logIfCollected'],
+    prop: string
+): any {
+    if (mode === 'list' && Array.isArray(stored)) {
+        return derefWeakRefList(stored, logIfCollected, prop);
+    }
+    if (stored instanceof WeakRef) {
+        const derefed = stored.deref();
+        if (derefed === undefined && logIfCollected !== 'silent') {
+            const logger = getLogger(logIfCollected);
+            logger(`WeakRef property '${prop}' has been garbage collected`);
+        }
+        return derefed;
+    }
+    return stored;
 }
 
 async function convertPropertyToGetterSetter(
@@ -218,7 +317,7 @@ async function convertPropertyToGetterSetter(
     weakRefProps: WeakRefProps
 ): Promise<void> {
     // Check if this property should use WeakRef
-    const useWeakRef = weakRefProps.properties.has(prop);
+    const mode = getWeakRefMode(weakRefProps, prop);
 
     if (isPlainObject) {
         // For plain objects, check own descriptor only
@@ -228,33 +327,31 @@ async function convertPropertyToGetterSetter(
         }
 
         const currentValue = vm[prop];
-        storage[prop] = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
-        
+        let initialValueToStore = currentValue;
+        if (mode === 'single' && currentValue) {
+            initialValueToStore = new WeakRef(currentValue);
+        } else if (mode === 'list') {
+            initialValueToStore = wrapWeakRefList(currentValue);
+        }
+        storage[prop] = initialValueToStore;
+
         Object.defineProperty(vm, prop, {
             get() {
                 const val = storage[prop];
-                // Check if it's a WeakRef and deref
-                if (val instanceof WeakRef) {
-                    const derefed = val.deref();
-                    if (derefed === undefined && weakRefProps.logIfCollected !== 'silent') {
-                        const logger = typeof weakRefProps.logIfCollected === 'function' 
-                            ? weakRefProps.logIfCollected
-                            : weakRefProps.logIfCollected === 'warn' ? console.warn : console.error;
-                        logger(`WeakRef property '${prop}' has been garbage collected`);
-                    }
-                    return derefed;
-                }
-                return val;
+                return derefStoredValue(val, mode, weakRefProps.logIfCollected, prop);
             },
             set(newValue: any) {
                 const stored = storage[prop];
-                const oldValue = (stored instanceof WeakRef) ? stored.deref() : stored;
-                
+                const oldValue = derefStoredValue(stored, mode, weakRefProps.logIfCollected, prop);
+
                 if (oldValue !== newValue) {
-                    const valueToStore = (useWeakRef && newValue) 
-                        ? new WeakRef(newValue) 
-                        : newValue;
-                    
+                    let valueToStore = newValue;
+                    if (mode === 'single' && newValue) {
+                        valueToStore = new WeakRef(newValue);
+                    } else if (mode === 'list') {
+                        valueToStore = wrapWeakRefList(newValue);
+                    }
+
                     storage[prop] = valueToStore;
                     propagator.dispatchEvent(new PropertyChangeEvent(prop, oldValue, newValue));
                 }
@@ -271,7 +368,12 @@ async function convertPropertyToGetterSetter(
 
         // Initialize per-instance storage
         const currentValue = vm[prop];
-        const valueToStore = useWeakRef && currentValue ? new WeakRef(currentValue) : currentValue;
+        let valueToStore = currentValue;
+        if (mode === 'single' && currentValue) {
+            valueToStore = new WeakRef(currentValue);
+        } else if (mode === 'list') {
+            valueToStore = wrapWeakRefList(currentValue);
+        }
         if (!(storageKey in vm) && !(protoHasGetterSetter && protoDescriptor.get && !protoDescriptor.set)) {
             Object.defineProperty(vm, storageKey, {
                 value: valueToStore,
@@ -311,27 +413,20 @@ async function convertPropertyToGetterSetter(
         Object.defineProperty(target, prop, {
             get() {
                 const val = this[storageKey];
-                if (val instanceof WeakRef) {
-                    const derefed = val.deref();
-                    if (derefed === undefined && weakRefProps.logIfCollected !== 'silent') {
-                        const logger = typeof weakRefProps.logIfCollected === 'function' 
-                            ? weakRefProps.logIfCollected
-                            : weakRefProps.logIfCollected === 'warn' ? console.warn : console.error;
-                        logger(`WeakRef property '${prop}' has been garbage collected`);
-                    }
-                    return derefed;
-                }
-                return val;
+                return derefStoredValue(val, mode, weakRefProps.logIfCollected, prop);
             },
             set(newValue: any) {
                 const stored = this[storageKey];
-                const oldValue = (stored instanceof WeakRef) ? stored.deref() : stored;
-                
+                const oldValue = derefStoredValue(stored, mode, weakRefProps.logIfCollected, prop);
+
                 if (oldValue !== newValue) {
-                    const valueToStore = (useWeakRef && newValue) 
-                        ? new WeakRef(newValue) 
-                        : newValue;
-                    
+                    let valueToStore = newValue;
+                    if (mode === 'single' && newValue) {
+                        valueToStore = new WeakRef(newValue);
+                    } else if (mode === 'list') {
+                        valueToStore = wrapWeakRefList(newValue);
+                    }
+
                     if (!(storageKey in this)) {
                         Object.defineProperty(this, storageKey, {
                             value: valueToStore,
@@ -342,7 +437,7 @@ async function convertPropertyToGetterSetter(
                     } else {
                         this[storageKey] = valueToStore;
                     }
-                    
+
                     const instancePropagator = this.propagator;
                     if (instancePropagator) {
                         instancePropagator.dispatchEvent(
