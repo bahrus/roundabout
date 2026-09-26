@@ -39,17 +39,31 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
 
     private async setupViewModel(): Promise<void> {
         const vm = this.options.vm || {} as any;
-        
+
+        // `covertAssignment`/`awake`/`nudge`/`rock` are RoundaboutReady's own
+        // (currently unimplemented) convenience placeholders. A consuming
+        // enhancement's domain model can legitimately want one of those exact
+        // names for its own, unrelated property (e.g. a `nudge` boolean flag) --
+        // don't squat on it in that case. Otherwise the stub gets defaulted in
+        // here, *before* `setupPropagatorAndProperties` runs, gets captured as
+        // that property's "already set" value by `convertPropertyToGetterSetter`,
+        // and permanently shadows the real value `initVals`/`defaultPropVals`
+        // was supposed to supply.
+        const claimed = new Set<string>([
+            ...Object.keys(this.options.initialPropVals ?? {}),
+            ...Object.keys(this.options.defaultPropVals ?? {}),
+        ]);
+
         // Add RoundaboutReady interface if not present
         if (!vm.RAController) {
             vm.RAController = this.abortController;
         }
 
-        if (!vm.covertAssignment) {
+        if (!claimed.has('covertAssignment') && !vm.covertAssignment) {
             vm.covertAssignment = async (obj: any) => {
                 // Import covert property setter
                 const { covertlySetProperty } = await import('../utils/PropagatorSetup.js');
-                
+
                 // Set properties covertly (without triggering events)
                 for (const [key, value] of Object.entries(obj)) {
                     covertlySetProperty(vm, key, value);
@@ -57,19 +71,19 @@ export class RoundaboutManager<TProps = any, TActions = TProps, ETProps = TProps
             };
         }
 
-        if (!vm.awake) {
+        if (!claimed.has('awake') && !vm.awake) {
             vm.awake = async () => {
                 // TODO: Implement sleep/awake mechanism
             };
         }
 
-        if (!vm.nudge) {
+        if (!claimed.has('nudge') && !vm.nudge) {
             vm.nudge = () => {
                 // TODO: Implement nudge
             };
         }
 
-        if (!vm.rock) {
+        if (!claimed.has('rock') && !vm.rock) {
             vm.rock = () => {
                 // TODO: Implement rock
             };

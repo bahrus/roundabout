@@ -166,6 +166,7 @@ export async function setupPropagator(
                 const storageKey = `__${prop}`;
                 const mode = getWeakRefMode(weakRefProps, prop);
                 const currentValue = vm[prop];
+                if (currentValue !== undefined) markRescued(vm, prop);
                 let valueToStore = currentValue;
                 if (mode === 'single' && currentValue) {
                     valueToStore = new WeakRef(currentValue);
@@ -308,6 +309,25 @@ function derefStoredValue(
     return stored;
 }
 
+/**
+ * Record that `prop` already held a non-undefined value at the moment it was
+ * converted to an accessor -- i.e. something (an imperative `instance.prop =
+ * value` racing the async `init`, typically) set it before roundabout got a
+ * chance to wire up reactivity for it. `roundabout()`'s final `initVals`
+ * application step consults this to avoid clobbering that value.
+ */
+function markRescued(vm: any, prop: string): void {
+    if (!vm.__roundaboutRescuedProps) {
+        Object.defineProperty(vm, '__roundaboutRescuedProps', {
+            value: new Set<string>(),
+            enumerable: false,
+            writable: false,
+            configurable: true
+        });
+    }
+    (vm.__roundaboutRescuedProps as Set<string>).add(prop);
+}
+
 async function convertPropertyToGetterSetter(
     vm: any,
     prop: string,
@@ -327,6 +347,7 @@ async function convertPropertyToGetterSetter(
         }
 
         const currentValue = vm[prop];
+        if (currentValue !== undefined) markRescued(vm, prop);
         let initialValueToStore = currentValue;
         if (mode === 'single' && currentValue) {
             initialValueToStore = new WeakRef(currentValue);
@@ -368,6 +389,7 @@ async function convertPropertyToGetterSetter(
 
         // Initialize per-instance storage
         const currentValue = vm[prop];
+        if (currentValue !== undefined) markRescued(vm, prop);
         let valueToStore = currentValue;
         if (mode === 'single' && currentValue) {
             valueToStore = new WeakRef(currentValue);

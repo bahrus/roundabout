@@ -145,6 +145,8 @@ export async function setupPropagator(vm, propertiesToMonitor, weakRefConfig) {
                 const storageKey = `__${prop}`;
                 const mode = getWeakRefMode(weakRefProps, prop);
                 const currentValue = vm[prop];
+                if (currentValue !== undefined)
+                    markRescued(vm, prop);
                 let valueToStore = currentValue;
                 if (mode === 'single' && currentValue) {
                     valueToStore = new WeakRef(currentValue);
@@ -262,6 +264,24 @@ function derefStoredValue(stored, mode, logIfCollected, prop) {
     }
     return stored;
 }
+/**
+ * Record that `prop` already held a non-undefined value at the moment it was
+ * converted to an accessor -- i.e. something (an imperative `instance.prop =
+ * value` racing the async `init`, typically) set it before roundabout got a
+ * chance to wire up reactivity for it. `roundabout()`'s final `initVals`
+ * application step consults this to avoid clobbering that value.
+ */
+function markRescued(vm, prop) {
+    if (!vm.__roundaboutRescuedProps) {
+        Object.defineProperty(vm, '__roundaboutRescuedProps', {
+            value: new Set(),
+            enumerable: false,
+            writable: false,
+            configurable: true
+        });
+    }
+    vm.__roundaboutRescuedProps.add(prop);
+}
 async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPlainObject, weakRefProps) {
     // Check if this property should use WeakRef
     const mode = getWeakRefMode(weakRefProps, prop);
@@ -272,6 +292,8 @@ async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPl
             return;
         }
         const currentValue = vm[prop];
+        if (currentValue !== undefined)
+            markRescued(vm, prop);
         let initialValueToStore = currentValue;
         if (mode === 'single' && currentValue) {
             initialValueToStore = new WeakRef(currentValue);
@@ -312,6 +334,8 @@ async function convertPropertyToGetterSetter(vm, prop, storage, propagator, isPl
         const protoHasGetterSetter = protoDescriptor && (protoDescriptor.get || protoDescriptor.set);
         // Initialize per-instance storage
         const currentValue = vm[prop];
+        if (currentValue !== undefined)
+            markRescued(vm, prop);
         let valueToStore = currentValue;
         if (mode === 'single' && currentValue) {
             valueToStore = new WeakRef(currentValue);
